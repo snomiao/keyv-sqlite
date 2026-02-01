@@ -10,7 +10,7 @@ export default defineConfig({
       },
     },
     benchmark: {
-      reporters: ["verbose"],
+      reporters: ["default"],
     },
   },
 });
