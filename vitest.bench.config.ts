@@ -6,7 +6,7 @@ export default defineConfig({
     poolOptions: {
       vmThreads: {
         singleThread: true,
-        execArgv: ["--experimental-sqlite", "--max-old-space-size=4096"],
+        execArgv: ["--experimental-sqlite"],
       },
     },
     benchmark: {
