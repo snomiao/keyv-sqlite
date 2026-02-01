@@ -38,8 +38,9 @@ jobs:
       - name: Run benchmark
         run: |
           mkdir -p runtime
+          DRIVER_SAFE=$(echo "${{ matrix.driver }}" | tr ':' '-')
           node --experimental-sqlite --max-old-space-size=4096 \
-            ./node_modules/.bin/vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${{ matrix.driver }}-wal-${{ matrix.wal }}.txt
+            ./node_modules/.bin/vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${DRIVER_SAFE}-wal-${{ matrix.wal }}.txt
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
@@ -49,8 +50,8 @@ jobs:
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-node-${{ matrix.driver }}-wal-${{ matrix.wal }}
-          path: benchmark-node-${{ matrix.driver }}-wal-${{ matrix.wal }}.txt
+          name: benchmark-node-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}
+          path: benchmark-node-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}.txt
           retention-days: 30
 
   benchmark-bun:
