@@ -42,13 +42,13 @@ jobs:
       - name: Run benchmark
         run: |
           mkdir -p runtime
-          node --experimental-sqlite --max-old-space-size=4096 \
-            ./node_modules/.bin/vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
+          npm run bench 2>&1 | tee benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
           BENCHMARK_RUNTIME: node
           NODE_ENV: production
+          NODE_OPTIONS: --experimental-sqlite --max-old-space-size=4096
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

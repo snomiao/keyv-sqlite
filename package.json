@@ -21,7 +21,7 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "bench": "vitest bench",
+    "bench": "vitest bench --run --config=vitest.bench.config.ts",
     "test": "vitest --ui",
     "check": "oxlint src && oxfmt src",
     "format": "oxfmt --write src"
