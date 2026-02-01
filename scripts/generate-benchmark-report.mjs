@@ -8,13 +8,15 @@ const TAG_NAME = process.env.TAG_NAME;
 
 function parseBenchmarkOutput(content) {
   const benchmarks = [];
-  const lines = content.split('\n');
+  // Strip ANSI color codes
+  const cleanContent = content.replace(/\x1b\[[0-9;]*m/g, '');
+  const lines = cleanContent.split('\n');
 
   let currentSuite = '';
 
   for (const line of lines) {
     // Parse suite names from lines like " ✓ src/index.bench.ts > sqlite select 1325ms"
-    const suiteMatch = line.match(/^\s+[✓✗]\s+src\/[^\s]+\s*>\s*([^\d]+?)\s*\d+ms/);
+    const suiteMatch = line.match(/^\s+[✓✗]\s+src\/[^\s]+\s*>\s*([^0-9]+?)\s*\d+ms/);
     if (suiteMatch) {
       currentSuite = suiteMatch[1].trim();
       continue;
