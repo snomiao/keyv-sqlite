@@ -5,5 +5,11 @@ export default defineConfig({
     benchmark: {
       reporters: ["verbose"],
     },
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        execArgv: ["--experimental-sqlite", "--max-old-space-size=4096"],
+      },
+    },
   },
 });
