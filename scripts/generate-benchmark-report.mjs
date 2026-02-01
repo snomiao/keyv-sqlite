@@ -47,12 +47,15 @@ async function loadBenchmarkResults() {
           const content = await readFile(join(resultsDir, dir, file), 'utf-8');
 
           // Extract runtime, driver and WAL mode from directory name
-          // Format: benchmark-{runtime}-{driver}-wal-{true|false}
-          const match = dir.match(/benchmark-(node|bun)-([\w:]+)-wal-(true|false)/);
+          // Format: benchmark-{runtime}-{driver-sanitized}-wal-{true|false}
+          // Note: colons in driver names are replaced with dashes (e.g., node-sqlite instead of node:sqlite)
+          const match = dir.match(/benchmark-(node|bun)-([\w-]+)-wal-(true|false)/);
           if (match) {
+            // Convert sanitized driver name back to original format
+            const driver = match[2].replace(/^(node|bun)-sqlite$/, '$1:sqlite');
             results.push({
               runtime: match[1],
-              driver: match[2],
+              driver: driver,
               wal: match[3] === 'true',
               content: content,
               benchmarks: parseBenchmarkOutput(content)

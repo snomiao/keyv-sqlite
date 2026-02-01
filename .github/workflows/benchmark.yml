@@ -85,7 +85,8 @@ jobs:
       - name: Run benchmark
         run: |
           mkdir -p runtime
-          bun run --bun vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-bun-${{ matrix.driver }}-wal-${{ matrix.wal }}.txt
+          DRIVER_SAFE=$(echo "${{ matrix.driver }}" | tr ':' '-')
+          bun run --bun vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-bun-${DRIVER_SAFE}-wal-${{ matrix.wal }}.txt
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
@@ -95,8 +96,8 @@ jobs:
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-bun-${{ matrix.driver }}-wal-${{ matrix.wal }}
-          path: benchmark-bun-${{ matrix.driver }}-wal-${{ matrix.wal }}.txt
+          name: benchmark-bun-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}
+          path: benchmark-bun-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}.txt
           retention-days: 30
 
   analyze-results:
