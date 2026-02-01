@@ -20,13 +20,14 @@ async function loadBenchmarkResults() {
           const content = await readFile(join(resultsDir, dir, file), 'utf-8');
           const data = JSON.parse(content);
 
-          // Extract driver and WAL mode from directory name
-          // Format: benchmark-{driver}-wal-{true|false}
-          const match = dir.match(/benchmark-([\w:]+)-wal-(true|false)/);
+          // Extract runtime, driver and WAL mode from directory name
+          // Format: benchmark-{runtime}-{driver}-wal-{true|false}
+          const match = dir.match(/benchmark-(node|bun)-([\w:]+)-wal-(true|false)/);
           if (match) {
             results.push({
-              driver: match[1],
-              wal: match[2] === 'true',
+              runtime: match[1],
+              driver: match[2],
+              wal: match[3] === 'true',
               data: data
             });
           }
@@ -51,13 +52,14 @@ function analyzeBenchmarks(results) {
   const analysis = {};
 
   for (const result of results) {
-    const key = `${result.driver} (WAL: ${result.wal})`;
+    const key = `${result.runtime}/${result.driver} (WAL: ${result.wal})`;
 
     if (!result.data.testResults || result.data.testResults.length === 0) {
       continue;
     }
 
     analysis[key] = {
+      runtime: result.runtime,
       driver: result.driver,
       wal: result.wal,
       benchmarks: []
@@ -87,11 +89,11 @@ function generateMarkdownReport(analysis, tagName) {
 
   // Summary table
   markdown += `## Summary\n\n`;
-  markdown += `| Driver | WAL Mode | Total Benchmarks |\n`;
-  markdown += `|--------|----------|------------------|\n`;
+  markdown += `| Runtime | Driver | WAL Mode | Total Benchmarks |\n`;
+  markdown += `|---------|--------|----------|------------------|\n`;
 
-  for (const [key, data] of Object.entries(analysis)) {
-    markdown += `| ${data.driver} | ${data.wal ? '✅' : '❌'} | ${data.benchmarks.length} |\n`;
+  for (const [_key, data] of Object.entries(analysis)) {
+    markdown += `| ${data.runtime} | ${data.driver} | ${data.wal ? '✅' : '❌'} | ${data.benchmarks.length} |\n`;
   }
 
   // Detailed results by benchmark
@@ -99,13 +101,13 @@ function generateMarkdownReport(analysis, tagName) {
 
   // Group benchmarks by name
   const benchmarksByName = {};
-  for (const [key, data] of Object.entries(analysis)) {
+  for (const [_key, data] of Object.entries(analysis)) {
     for (const bench of data.benchmarks) {
       if (!benchmarksByName[bench.name]) {
         benchmarksByName[bench.name] = [];
       }
       benchmarksByName[bench.name].push({
-        config: key,
+        runtime: data.runtime,
         driver: data.driver,
         wal: data.wal,
         ...bench
@@ -115,8 +117,8 @@ function generateMarkdownReport(analysis, tagName) {
 
   for (const [benchName, configs] of Object.entries(benchmarksByName)) {
     markdown += `### ${benchName}\n\n`;
-    markdown += `| Configuration | Duration | Ops/sec |\n`;
-    markdown += `|---------------|----------|----------|\n`;
+    markdown += `| Runtime | Driver | WAL | Duration | Ops/sec |\n`;
+    markdown += `|---------|--------|-----|----------|----------|\n`;
 
     // Sort by duration (fastest first)
     configs.sort((a, b) => a.duration - b.duration);
@@ -128,12 +130,12 @@ function generateMarkdownReport(analysis, tagName) {
         ? `${(config.opsPerSec / 1000).toFixed(2)}K`
         : config.opsPerSec.toFixed(2);
 
-      markdown += `| ${config.driver} (WAL: ${config.wal ? '✅' : '❌'}) | ${formatDuration(config.duration)} | ${opsPerSec} |\n`;
+      markdown += `| ${config.runtime} | ${config.driver} | ${config.wal ? '✅' : '❌'} | ${formatDuration(config.duration)} | ${opsPerSec} |\n`;
     }
 
     // Add winner
     const winner = configs[0];
-    markdown += `\n🏆 **Winner**: ${winner.driver} (WAL: ${winner.wal ? 'enabled' : 'disabled'}) - ${formatDuration(winner.duration)}\n\n`;
+    markdown += `\n🏆 **Winner**: ${winner.runtime}/${winner.driver} (WAL: ${winner.wal ? 'enabled' : 'disabled'}) - ${formatDuration(winner.duration)}\n\n`;
   }
 
   // Performance insights
@@ -141,10 +143,11 @@ function generateMarkdownReport(analysis, tagName) {
 
   // Calculate average performance by driver
   const driverStats = {};
-  for (const [key, data] of Object.entries(analysis)) {
-    const configKey = `${data.driver}-${data.wal}`;
+  for (const [_key, data] of Object.entries(analysis)) {
+    const configKey = `${data.runtime}-${data.driver}-${data.wal}`;
     if (!driverStats[configKey]) {
       driverStats[configKey] = {
+        runtime: data.runtime,
         driver: data.driver,
         wal: data.wal,
         totalDuration: 0,
@@ -165,29 +168,30 @@ function generateMarkdownReport(analysis, tagName) {
     .sort((a, b) => a.avgDuration - b.avgDuration);
 
   markdown += `### Average Performance (lower is better)\n\n`;
-  markdown += `| Rank | Configuration | Avg Duration |\n`;
-  markdown += `|------|---------------|-------------|\n`;
+  markdown += `| Rank | Runtime | Driver | WAL | Avg Duration |\n`;
+  markdown += `|------|---------|--------|-----|-------------|\n`;
 
   avgPerformance.forEach((stat, index) => {
     const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-    markdown += `| ${medal} | ${stat.driver} (WAL: ${stat.wal ? '✅' : '❌'}) | ${formatDuration(stat.avgDuration)} |\n`;
+    markdown += `| ${medal} | ${stat.runtime} | ${stat.driver} | ${stat.wal ? '✅' : '❌'} | ${formatDuration(stat.avgDuration)} |\n`;
   });
 
   // WAL impact analysis
   markdown += `\n### WAL Mode Impact\n\n`;
   const walImpact = {};
   for (const stat of Object.values(driverStats)) {
-    if (!walImpact[stat.driver]) {
-      walImpact[stat.driver] = {};
+    const key = `${stat.runtime}/${stat.driver}`;
+    if (!walImpact[key]) {
+      walImpact[key] = {};
     }
-    walImpact[stat.driver][stat.wal ? 'wal' : 'nowal'] = stat.totalDuration / stat.count;
+    walImpact[key][stat.wal ? 'wal' : 'nowal'] = stat.totalDuration / stat.count;
   }
 
-  for (const [driver, impact] of Object.entries(walImpact)) {
+  for (const [config, impact] of Object.entries(walImpact)) {
     if (impact.wal && impact.nowal) {
       const diff = ((impact.wal - impact.nowal) / impact.nowal * 100).toFixed(2);
       const faster = impact.wal < impact.nowal ? 'faster' : 'slower';
-      markdown += `- **${driver}**: WAL mode is ${Math.abs(diff)}% ${faster} (${formatDuration(impact.wal)} vs ${formatDuration(impact.nowal)})\n`;
+      markdown += `- **${config}**: WAL mode is ${Math.abs(diff)}% ${faster} (${formatDuration(impact.wal)} vs ${formatDuration(impact.nowal)})\n`;
     }
   }
 

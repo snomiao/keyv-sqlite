@@ -1,14 +1,29 @@
 import { join } from "node:path";
 import { beforeAll, bench, describe } from "vitest";
-import { createDatabase, type DatabaseSyncType, type DriverType } from "./sqliteAdapter.js";
+import {
+  createDatabase,
+  type DatabaseSyncType,
+  type DriverType,
+} from "./sqliteAdapter.js";
 
 let sqlite: DatabaseSyncType;
 
 // Get configuration from environment variables
-const driver = (process.env.BENCHMARK_DRIVER || "auto") as DriverType;
+if (!process.env.BENCHMARK_DRIVER) {
+  throw new Error("BENCHMARK_DRIVER environment variable is required");
+}
+if (!process.env.BENCHMARK_WAL) {
+  throw new Error("BENCHMARK_WAL environment variable is required");
+}
+
+const driver = process.env.BENCHMARK_DRIVER as DriverType;
 const enableWAL = process.env.BENCHMARK_WAL === "true";
 
-const sqliteFile = join(process.cwd(), "runtime", `cache-${driver}-wal-${enableWAL}.sqlite3`);
+const sqliteFile = join(
+  process.cwd(),
+  "runtime",
+  `cache-${driver}-wal-${enableWAL}.sqlite3`,
+);
 const cacheTableName = "caches";
 
 const argsCount = 2;
