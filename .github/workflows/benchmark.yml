@@ -35,12 +35,15 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Sanitize driver name
+        id: driver
+        run: echo "safe=$(echo "${{ matrix.driver }}" | tr ':' '-')" >> $GITHUB_OUTPUT
+
       - name: Run benchmark
         run: |
           mkdir -p runtime
-          DRIVER_SAFE=$(echo "${{ matrix.driver }}" | tr ':' '-')
           node --experimental-sqlite --max-old-space-size=4096 \
-            ./node_modules/.bin/vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${DRIVER_SAFE}-wal-${{ matrix.wal }}.txt
+            ./node_modules/.bin/vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
@@ -50,8 +53,8 @@ jobs:
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-node-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}
-          path: benchmark-node-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}.txt
+          name: benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}
+          path: benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
           retention-days: 30
 
   benchmark-bun:
@@ -82,11 +85,14 @@ jobs:
       - name: Build project
         run: bun run build
 
+      - name: Sanitize driver name
+        id: driver
+        run: echo "safe=$(echo "${{ matrix.driver }}" | tr ':' '-')" >> $GITHUB_OUTPUT
+
       - name: Run benchmark
         run: |
           mkdir -p runtime
-          DRIVER_SAFE=$(echo "${{ matrix.driver }}" | tr ':' '-')
-          bun run --bun vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-bun-${DRIVER_SAFE}-wal-${{ matrix.wal }}.txt
+          bun run --bun vitest bench --run --config=vitest.bench.config.ts 2>&1 | tee benchmark-bun-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
@@ -96,8 +102,8 @@ jobs:
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-bun-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}
-          path: benchmark-bun-${{ replace(matrix.driver, ':', '-') }}-wal-${{ matrix.wal }}.txt
+          name: benchmark-bun-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}
+          path: benchmark-bun-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
           retention-days: 30
 
   analyze-results:
