@@ -1,0 +1,105 @@
+name: Benchmark
+
+on:
+  push:
+    tags:
+      - 'v*-benchmark'
+
+jobs:
+  benchmark-node:
+    name: Benchmark ${{ matrix.driver }} (WAL=${{ matrix.wal }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        driver: ['node:sqlite', 'better-sqlite3']
+        wal: ['true', 'false']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install better-sqlite3 (if needed)
+        if: matrix.driver == 'better-sqlite3'
+        run: npm install better-sqlite3
+
+      - name: Run benchmark
+        run: |
+          node --experimental-sqlite --max-old-space-size=4096 \
+            ./node_modules/.bin/vitest bench --run \
+            --reporter=json --outputFile=benchmark-${{ matrix.driver }}-wal-${{ matrix.wal }}.json
+        env:
+          BENCHMARK_DRIVER: ${{ matrix.driver }}
+          BENCHMARK_WAL: ${{ matrix.wal }}
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ matrix.driver }}-wal-${{ matrix.wal }}
+          path: benchmark-${{ matrix.driver }}-wal-${{ matrix.wal }}.json
+
+  benchmark-bun:
+    name: Benchmark bun:sqlite (WAL=${{ matrix.wal }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        wal: ['true', 'false']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run benchmark
+        run: |
+          bun run --bun vitest bench --run \
+            --reporter=json --outputFile=benchmark-bun-sqlite-wal-${{ matrix.wal }}.json
+        env:
+          BENCHMARK_DRIVER: bun:sqlite
+          BENCHMARK_WAL: ${{ matrix.wal }}
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-bun-sqlite-wal-${{ matrix.wal }}
+          path: benchmark-bun-sqlite-wal-${{ matrix.wal }}.json
+
+  analyze-results:
+    name: Analyze and Report Results
+    needs: [benchmark-node, benchmark-bun]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: benchmark-results
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Generate benchmark report
+        run: |
+          node --experimental-sqlite scripts/generate-benchmark-report.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}

@@ -1,10 +1,14 @@
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { beforeAll, bench, describe } from "vitest";
+import { createDatabase, type DatabaseSyncType, type DriverType } from "./sqliteAdapter.js";
 
-let sqlite: DatabaseSync;
+let sqlite: DatabaseSyncType;
 
-const sqliteFile = join(process.cwd(), "runtime", "cache.sqlite3");
+// Get configuration from environment variables
+const driver = (process.env.BENCHMARK_DRIVER || "auto") as DriverType;
+const enableWAL = process.env.BENCHMARK_WAL === "true";
+
+const sqliteFile = join(process.cwd(), "runtime", `cache-${driver}-wal-${enableWAL}.sqlite3`);
 const cacheTableName = "caches";
 
 const argsCount = 2;
@@ -12,9 +16,16 @@ const argsCount = 2;
 const keys = Array.from({ length: 10000 }, (_, i) => i + 1);
 
 beforeAll(async () => {
-  sqlite = new DatabaseSync(sqliteFile);
+  console.log(`\n🔧 Benchmark Configuration:`);
+  console.log(`   Driver: ${driver}`);
+  console.log(`   WAL Mode: ${enableWAL}`);
+  console.log(`   Database: ${sqliteFile}\n`);
 
-  //sqlite.exec("PRAGMA journal_mode = WAL");
+  sqlite = await createDatabase(sqliteFile, driver);
+
+  if (enableWAL) {
+    sqlite.exec("PRAGMA journal_mode = WAL");
+  }
 
   sqlite.exec(`
  CREATE TABLE IF NOT EXISTS ${cacheTableName} (
