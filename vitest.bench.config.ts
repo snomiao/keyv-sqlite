@@ -2,10 +2,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    pool: "vmThreads",
+    pool: "forks",
     poolOptions: {
-      vmThreads: {
-        singleThread: true,
+      forks: {
+        singleFork: true,
         execArgv: ["--experimental-sqlite"],
       },
     },
