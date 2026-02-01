@@ -1,49 +1,6 @@
 import EventEmitter from "node:events";
 import Keyv, { type KeyvStoreAdapter, type StoredData } from "keyv";
-
-type DatabaseSyncType = {
-  exec(sql: string): void;
-  prepare<T = unknown>(
-    sql: string,
-  ): {
-    run(...params: unknown[]): {
-      changes: number;
-      lastInsertRowid: number | bigint;
-    };
-    get(...params: unknown[]): T | undefined;
-    all(...params: unknown[]): T[];
-  };
-  close(): void;
-};
-
-// Lazy load the appropriate SQLite module based on environment
-function getDatabaseClass(): new (path: string) => DatabaseSyncType {
-  // @ts-expect-error - Bun global may not exist in Node.js
-  const isBun = typeof Bun !== "undefined";
-  // @ts-expect-error - WorkerGlobalScope may not exist
-  const isWorker =
-    typeof WorkerGlobalScope !== "undefined" &&
-    self instanceof WorkerGlobalScope;
-  const isBrowser = typeof window !== "undefined" && !isWorker;
-
-  if (isBun) {
-    // Bun runtime uses bun:sqlite
-    // @ts-expect-error - Bun-specific import
-    const { Database } = require("bun:sqlite");
-    return Database;
-  } else if (isBrowser || isWorker) {
-    // Browser/Worker environments use @sqlite.org/sqlite-wasm
-    // Note: This requires async initialization, users should handle this case
-    throw new Error(
-      "Browser/Worker environments require async initialization. " +
-        "Please use @sqlite.org/sqlite-wasm directly for browser/worker support.",
-    );
-  } else {
-    // Node.js and Deno use node:sqlite
-    const { DatabaseSync } = require("node:sqlite");
-    return DatabaseSync;
-  }
-}
+import { createDatabase, type DatabaseSyncType } from "./sqliteAdapter.js";
 
 type KeyvSqliteOptions = {
   dialect?: string;
@@ -82,10 +39,17 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
     expiredAt: number,
   ) => CacheObject[];
 
-  constructor(options?: KeyvSqliteOptions) {
-    super();
-    this.ttlSupport = true;
-    this.opts = {
+  /**
+   * Create a new KeyvSqlite instance
+   * @param options - Configuration options
+   * @returns Promise that resolves to a KeyvSqlite instance
+   */
+  static async create(options?: KeyvSqliteOptions): Promise<KeyvSqlite> {
+    const instance = Object.create(KeyvSqlite.prototype);
+    EventEmitter.call(instance);
+
+    instance.ttlSupport = true;
+    instance.opts = {
       dialect: "sqlite",
       table: "caches",
       busyTimeout: 5000,
@@ -94,17 +58,35 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
     };
 
     // Create database connection using environment-appropriate SQLite module
-    const DatabaseClass = getDatabaseClass();
-    this.sqlite = new DatabaseClass(this.opts.uri || ":memory:");
+    instance.sqlite = await createDatabase(instance.opts.uri || ":memory:");
 
-    if (this.opts.enableWALMode) {
-      this.sqlite.exec("PRAGMA journal_mode = WAL");
+    if (instance.opts.enableWALMode) {
+      instance.sqlite.exec("PRAGMA journal_mode = WAL");
     }
 
-    if (this.opts.busyTimeout) {
-      this.sqlite.exec(`PRAGMA busy_timeout = ${this.opts.busyTimeout}`);
+    if (instance.opts.busyTimeout) {
+      instance.sqlite.exec(
+        `PRAGMA busy_timeout = ${instance.opts.busyTimeout}`,
+      );
     }
 
+    instance._initializePreparedStatements();
+
+    return instance;
+  }
+
+  /**
+   * @deprecated Use KeyvSqlite.create() instead for proper async initialization
+   */
+  constructor(_options?: KeyvSqliteOptions) {
+    super();
+    throw new Error(
+      "Direct instantiation is deprecated. Use KeyvSqlite.create() instead:\n" +
+        "  const store = await KeyvSqlite.create(options);",
+    );
+  }
+
+  private _initializePreparedStatements(): void {
     const tableName = this.opts.table;
 
     this.sqlite.exec(`
@@ -117,10 +99,10 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
 CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
 `);
 
-    const selectSingleStatement = this.sqlite.prepare<string, CacheObject>(
+    const selectSingleStatement = this.sqlite.prepare<CacheObject>(
       `SELECT * FROM ${tableName} WHERE cacheKey = ?`,
     );
-    const selectStatement = this.sqlite.prepare<string, CacheObject>(
+    const selectStatement = this.sqlite.prepare<CacheObject>(
       `SELECT * FROM ${tableName} WHERE cacheKey IN (SELECT value FROM json_each(?))`,
     );
     const updateStatement = this.sqlite.prepare(
@@ -132,10 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
     const deleteStatement = this.sqlite.prepare(
       `DELETE FROM ${tableName} WHERE cacheKey IN (SELECT value FROM json_each(?))`,
     );
-    const finderStatement = this.sqlite.prepare<
-      [string, number, number, number],
-      CacheObject
-    >(
+    const finderStatement = this.sqlite.prepare<CacheObject>(
       `SELECT * FROM ${tableName} WHERE cacheKey LIKE ? AND (expiredAt = -1 OR expiredAt > ?) LIMIT ? OFFSET ?`,
     );
     const purgeStatement = this.sqlite.prepare(
@@ -298,5 +277,12 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
   }
 }
 
-export const createKeyv = (keyvOptions?: KeyvSqliteOptions) =>
-  new Keyv({ store: new KeyvSqlite(keyvOptions) });
+/**
+ * Create a Keyv instance with KeyvSqlite storage
+ * @param keyvOptions - Configuration options for KeyvSqlite
+ * @returns Promise that resolves to a Keyv instance
+ */
+export const createKeyv = async (keyvOptions?: KeyvSqliteOptions) => {
+  const store = await KeyvSqlite.create(keyvOptions);
+  return new Keyv({ store });
+};

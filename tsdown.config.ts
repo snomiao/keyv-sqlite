@@ -7,10 +7,4 @@ export default defineConfig({
   minify: true,
   treeshake: true,
   clean: true,
-  outExtension({ format }) {
-    return {
-      js: format === "esm" ? ".js" : ".cjs",
-      dts: format === "esm" ? ".d.ts" : ".d.cts",
-    };
-  },
 });
