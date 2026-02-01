@@ -9,6 +9,7 @@ type KeyvSqliteOptions = {
   enableWALMode?: boolean;
   busyTimeout?: number;
   iterationLimit?: number | string;
+  driver?: "auto" | "node:sqlite" | "bun:sqlite" | "better-sqlite3" | "sqlite3";
 };
 
 type CacheObject = {
@@ -58,7 +59,10 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
     };
 
     // Create database connection using environment-appropriate SQLite module
-    instance.sqlite = await createDatabase(instance.opts.uri || ":memory:");
+    instance.sqlite = await createDatabase(
+      instance.opts.uri || ":memory:",
+      instance.opts.driver || "auto",
+    );
 
     if (instance.opts.enableWALMode) {
       instance.sqlite.exec("PRAGMA journal_mode = WAL");
