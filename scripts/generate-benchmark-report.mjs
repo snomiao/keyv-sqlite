@@ -13,18 +13,22 @@ function parseBenchmarkOutput(content) {
   let currentSuite = '';
 
   for (const line of lines) {
-    // Parse suite names like "sqlite select"
-    const suiteMatch = line.match(/^\s+([^│]+)\s+$/);
-    if (suiteMatch && !line.includes('│')) {
+    // Parse suite names from lines like " ✓ src/index.bench.ts > sqlite select 1325ms"
+    const suiteMatch = line.match(/^\s+[✓✗]\s+src\/[^\s]+\s*>\s*([^\d]+?)\s*\d+ms/);
+    if (suiteMatch) {
       currentSuite = suiteMatch[1].trim();
       continue;
     }
 
-    // Parse benchmark lines like "  · select normal  1,234.56 ops/sec  ±0.12%"
-    const benchMatch = line.match(/^\s+[·✓]\s+(.+?)\s+[\d,]+(?:\.\d+)?\s+(ns|μs|ms|s)\/iter\s+\([\d,]+(?:\.\d+)?\s+(?:ns|μs|ms|s)\s*…\s*[\d,]+(?:\.\d+)?\s+(?:ns|μs|ms|s)\)/);
+    // Parse benchmark lines like "   · select normal     55,994.78  0.0145  16.1693  ..."
+    // Format: · name  hz  min  max  mean  p75  p99  p995  p999  rme  samples
+    const benchMatch = line.match(/^\s+[·✓]\s+(.+?)\s{2,}([\d,]+\.\d+)\s+/);
     if (benchMatch) {
+      const name = benchMatch[1].trim();
+      const hz = benchMatch[2].replace(/,/g, '');
       benchmarks.push({
-        name: `${currentSuite} - ${benchMatch[1].trim()}`,
+        name: currentSuite ? `${currentSuite} - ${name}` : name,
+        hz: parseFloat(hz),
         rawLine: line.trim()
       });
     }
