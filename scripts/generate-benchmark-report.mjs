@@ -6,6 +6,33 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
 const TAG_NAME = process.env.TAG_NAME;
 
+function parseBenchmarkOutput(content) {
+  const benchmarks = [];
+  const lines = content.split('\n');
+
+  let currentSuite = '';
+
+  for (const line of lines) {
+    // Parse suite names like "sqlite select"
+    const suiteMatch = line.match(/^\s+([^│]+)\s+$/);
+    if (suiteMatch && !line.includes('│')) {
+      currentSuite = suiteMatch[1].trim();
+      continue;
+    }
+
+    // Parse benchmark lines like "  · select normal  1,234.56 ops/sec  ±0.12%"
+    const benchMatch = line.match(/^\s+[·✓]\s+(.+?)\s+[\d,]+(?:\.\d+)?\s+(ns|μs|ms|s)\/iter\s+\([\d,]+(?:\.\d+)?\s+(?:ns|μs|ms|s)\s*…\s*[\d,]+(?:\.\d+)?\s+(?:ns|μs|ms|s)\)/);
+    if (benchMatch) {
+      benchmarks.push({
+        name: `${currentSuite} - ${benchMatch[1].trim()}`,
+        rawLine: line.trim()
+      });
+    }
+  }
+
+  return benchmarks;
+}
+
 async function loadBenchmarkResults() {
   const resultsDir = "benchmark-results";
   const results = [];
@@ -15,10 +42,9 @@ async function loadBenchmarkResults() {
   for (const dir of dirs) {
     const files = await readdir(join(resultsDir, dir));
     for (const file of files) {
-      if (file.endsWith('.json')) {
+      if (file.endsWith('.txt')) {
         try {
           const content = await readFile(join(resultsDir, dir, file), 'utf-8');
-          const data = JSON.parse(content);
 
           // Extract runtime, driver and WAL mode from directory name
           // Format: benchmark-{runtime}-{driver}-wal-{true|false}
@@ -28,7 +54,8 @@ async function loadBenchmarkResults() {
               runtime: match[1],
               driver: match[2],
               wal: match[3] === 'true',
-              data: data
+              content: content,
+              benchmarks: parseBenchmarkOutput(content)
             });
           }
         } catch (error) {
@@ -54,30 +81,16 @@ function analyzeBenchmarks(results) {
   for (const result of results) {
     const key = `${result.runtime}/${result.driver} (WAL: ${result.wal})`;
 
-    if (!result.data.testResults || result.data.testResults.length === 0) {
-      continue;
-    }
-
     analysis[key] = {
       runtime: result.runtime,
       driver: result.driver,
       wal: result.wal,
-      benchmarks: []
+      benchmarks: result.benchmarks.map(b => ({
+        name: b.name,
+        rawLine: b.rawLine
+      })),
+      rawOutput: result.content
     };
-
-    for (const testResult of result.data.testResults) {
-      if (!testResult.assertionResults) continue;
-
-      for (const assertion of testResult.assertionResults) {
-        if (assertion.status === 'passed' && assertion.duration) {
-          analysis[key].benchmarks.push({
-            name: assertion.fullName || assertion.title,
-            duration: assertion.duration,
-            opsPerSec: assertion.duration > 0 ? 1000000000 / assertion.duration : 0
-          });
-        }
-      }
-    }
   }
 
   return analysis;
@@ -96,103 +109,26 @@ function generateMarkdownReport(analysis, tagName) {
     markdown += `| ${data.runtime} | ${data.driver} | ${data.wal ? '✅' : '❌'} | ${data.benchmarks.length} |\n`;
   }
 
-  // Detailed results by benchmark
+  // Detailed results by configuration
   markdown += `\n## Detailed Results\n\n`;
 
-  // Group benchmarks by name
-  const benchmarksByName = {};
   for (const [_key, data] of Object.entries(analysis)) {
+    markdown += `### ${data.runtime}/${data.driver} (WAL: ${data.wal ? '✅' : '❌'})\n\n`;
+    markdown += `\`\`\`\n`;
+
+    // Include benchmark lines from raw output
     for (const bench of data.benchmarks) {
-      if (!benchmarksByName[bench.name]) {
-        benchmarksByName[bench.name] = [];
-      }
-      benchmarksByName[bench.name].push({
-        runtime: data.runtime,
-        driver: data.driver,
-        wal: data.wal,
-        ...bench
-      });
-    }
-  }
-
-  for (const [benchName, configs] of Object.entries(benchmarksByName)) {
-    markdown += `### ${benchName}\n\n`;
-    markdown += `| Runtime | Driver | WAL | Duration | Ops/sec |\n`;
-    markdown += `|---------|--------|-----|----------|----------|\n`;
-
-    // Sort by duration (fastest first)
-    configs.sort((a, b) => a.duration - b.duration);
-
-    for (const config of configs) {
-      const opsPerSec = config.opsPerSec >= 1000000
-        ? `${(config.opsPerSec / 1000000).toFixed(2)}M`
-        : config.opsPerSec >= 1000
-        ? `${(config.opsPerSec / 1000).toFixed(2)}K`
-        : config.opsPerSec.toFixed(2);
-
-      markdown += `| ${config.runtime} | ${config.driver} | ${config.wal ? '✅' : '❌'} | ${formatDuration(config.duration)} | ${opsPerSec} |\n`;
+      markdown += `${bench.rawLine}\n`;
     }
 
-    // Add winner
-    const winner = configs[0];
-    markdown += `\n🏆 **Winner**: ${winner.runtime}/${winner.driver} (WAL: ${winner.wal ? 'enabled' : 'disabled'}) - ${formatDuration(winner.duration)}\n\n`;
+    markdown += `\`\`\`\n\n`;
   }
 
-  // Performance insights
-  markdown += `## Performance Insights\n\n`;
+  // Configurations tested
+  markdown += `## Configurations Tested\n\n`;
 
-  // Calculate average performance by driver
-  const driverStats = {};
   for (const [_key, data] of Object.entries(analysis)) {
-    const configKey = `${data.runtime}-${data.driver}-${data.wal}`;
-    if (!driverStats[configKey]) {
-      driverStats[configKey] = {
-        runtime: data.runtime,
-        driver: data.driver,
-        wal: data.wal,
-        totalDuration: 0,
-        count: 0
-      };
-    }
-    for (const bench of data.benchmarks) {
-      driverStats[configKey].totalDuration += bench.duration;
-      driverStats[configKey].count++;
-    }
-  }
-
-  const avgPerformance = Object.values(driverStats)
-    .map(stat => ({
-      ...stat,
-      avgDuration: stat.totalDuration / stat.count
-    }))
-    .sort((a, b) => a.avgDuration - b.avgDuration);
-
-  markdown += `### Average Performance (lower is better)\n\n`;
-  markdown += `| Rank | Runtime | Driver | WAL | Avg Duration |\n`;
-  markdown += `|------|---------|--------|-----|-------------|\n`;
-
-  avgPerformance.forEach((stat, index) => {
-    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-    markdown += `| ${medal} | ${stat.runtime} | ${stat.driver} | ${stat.wal ? '✅' : '❌'} | ${formatDuration(stat.avgDuration)} |\n`;
-  });
-
-  // WAL impact analysis
-  markdown += `\n### WAL Mode Impact\n\n`;
-  const walImpact = {};
-  for (const stat of Object.values(driverStats)) {
-    const key = `${stat.runtime}/${stat.driver}`;
-    if (!walImpact[key]) {
-      walImpact[key] = {};
-    }
-    walImpact[key][stat.wal ? 'wal' : 'nowal'] = stat.totalDuration / stat.count;
-  }
-
-  for (const [config, impact] of Object.entries(walImpact)) {
-    if (impact.wal && impact.nowal) {
-      const diff = ((impact.wal - impact.nowal) / impact.nowal * 100).toFixed(2);
-      const faster = impact.wal < impact.nowal ? 'faster' : 'slower';
-      markdown += `- **${config}**: WAL mode is ${Math.abs(diff)}% ${faster} (${formatDuration(impact.wal)} vs ${formatDuration(impact.nowal)})\n`;
-    }
+    markdown += `- **${data.runtime}/${data.driver}** (WAL: ${data.wal ? 'enabled' : 'disabled'}) - ${data.benchmarks.length} benchmarks\n`;
   }
 
   markdown += `\n---\n\n`;
