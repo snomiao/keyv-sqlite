@@ -42,7 +42,7 @@ jobs:
       - name: Run benchmark
         run: |
           mkdir -p runtime
-          node --experimental-sqlite ./node_modules/.bin/vitest bench --run --pool=forks --poolOptions.forks.singleFork=true --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
+          node --experimental-sqlite ./node_modules/.bin/vitest bench --run --no-isolate --config=vitest.bench.config.ts 2>&1 | tee benchmark-node-${{ steps.driver.outputs.safe }}-wal-${{ matrix.wal }}.txt
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
