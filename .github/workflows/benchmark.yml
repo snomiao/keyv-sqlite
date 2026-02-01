@@ -48,7 +48,6 @@ jobs:
           BENCHMARK_WAL: ${{ matrix.wal }}
           BENCHMARK_RUNTIME: node
           NODE_ENV: production
-          NODE_OPTIONS: --experimental-sqlite --max-old-space-size=4096
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
