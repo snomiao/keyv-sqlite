@@ -39,7 +39,7 @@ jobs:
         run: |
           node --experimental-sqlite --max-old-space-size=4096 \
             ./node_modules/.bin/vitest bench --run \
-            --reporter=json --outputFile=benchmark-node-${{ matrix.driver }}-wal-${{ matrix.wal }}.json
+            --reporter=verbose --reporter=json --outputFile.json=benchmark-node-${{ matrix.driver }}-wal-${{ matrix.wal }}.json
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
@@ -84,7 +84,7 @@ jobs:
       - name: Run benchmark
         run: |
           bun run --bun vitest bench --run \
-            --reporter=json --outputFile=benchmark-bun-${{ matrix.driver }}-wal-${{ matrix.wal }}.json
+            --reporter=verbose --reporter=json --outputFile.json=benchmark-bun-${{ matrix.driver }}-wal-${{ matrix.wal }}.json
         env:
           BENCHMARK_DRIVER: ${{ matrix.driver }}
           BENCHMARK_WAL: ${{ matrix.wal }}
