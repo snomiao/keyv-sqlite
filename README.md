@@ -2,10 +2,12 @@
 
 A high-performance SQLite cache store for [keyv](https://github.com/jaredwray/keyv) with support for multiple SQLite drivers.
 
+> **Note:** This is a fork of [@resolid/keyv-sqlite](https://github.com/huijiewei/keyv-sqlite) by [@huijiewei](https://github.com/huijiewei) with a synchronous constructor API using top-level await. See [comparison below](#fork-differences).
+
 ## Installation
 
 ```bash
-npm i @resolid/keyv-sqlite
+npm i @snomiao/keyv-sqlite
 ```
 
 ## Usage
@@ -16,7 +18,7 @@ npm i @resolid/keyv-sqlite
 import { KeyvSqlite } from '@resolid/keyv-sqlite';
 import Keyv from "keyv";
 
-// Simple file path (recommended)
+// Simple file path (recommended), note: WAL mode is enabled by default
 const store = new KeyvSqlite('./cache.db');
 const keyv = new Keyv({ store });
 
@@ -151,6 +153,38 @@ type KeyvSqliteOptions = {
   iterationLimit?: number;   // Iterator batch size (default: 10)
 };
 ```
+
+## Fork Differences
+
+This fork (`@snomiao/keyv-sqlite`) differs from the original `@resolid/keyv-sqlite` in the following ways:
+
+| Feature | Original (@resolid) | This Fork (@snomiao) |
+|---------|---------------------|----------------------|
+| Constructor | ❌ Async factory only | ✅ Synchronous constructor |
+| Usage | `await KeyvSqlite.create(opts)` | `new KeyvSqlite(opts)` |
+| String parameter | ❌ No | ✅ Yes (`new KeyvSqlite('./db')`) |
+| Driver loading | ⏳ Async on-demand | ⚡ Pre-loaded (top-level await) |
+| API pattern | Async factory | Standard constructor |
+
+### Migration from Original
+
+If migrating from `@resolid/keyv-sqlite`:
+
+```diff
+- npm install @resolid/keyv-sqlite
++ npm install @snomiao/keyv-sqlite
+
+- const store = await KeyvSqlite.create({ uri: './cache.db' });
++ const store = new KeyvSqlite('./cache.db');
+```
+
+**Breaking changes:**
+- `enableWALMode` option renamed to `wal`
+- Must use synchronous constructor instead of `KeyvSqlite.create()`
+
+### Credits
+
+This fork is based on the excellent work by **[@huijiewei](https://github.com/huijiewei)** in [keyv-sqlite](https://github.com/huijiewei/keyv-sqlite). The synchronous API improvement was implemented using top-level await for driver pre-loading.
 
 ## License
 
