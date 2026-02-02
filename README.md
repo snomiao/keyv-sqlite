@@ -164,6 +164,7 @@ This fork (`@snomiao/keyv-sqlite`) differs from the original `@resolid/keyv-sqli
 | **Auto-detection** | ❌ No | ✅ Yes (picks best driver for runtime) |
 | **Native drivers** | ❌ No | ✅ node:sqlite (Node 22.5+), bun:sqlite |
 | **Cross-runtime** | ⚠️ Node.js only | ✅ Node.js, Bun, Deno |
+| **WAL mode** | ⚠️ Opt-in (off by default) | ✅ Enabled by default |
 | **Driver abstraction** | ❌ No | ✅ Yes (sqliteAdapter.ts with top-level await) |
 | **String parameter** | ❌ No | ✅ Yes (`new KeyvSqlite('./db')`) |
 | **Benchmark workflow** | ❌ No | ✅ Comprehensive multi-driver benchmarks |
