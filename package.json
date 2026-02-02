@@ -1,6 +1,6 @@
 {
   "name": "@snomiao/keyv-sqlite",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "A new SQLite storage adapter for Keyv.",
   "keywords": [
     "keyv",
