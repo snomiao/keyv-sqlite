@@ -24,42 +24,75 @@ export type DriverType =
   | "better-sqlite3"
   | "sqlite3";
 
-// Load a specific SQLite driver
-async function loadSpecificDriver(
-  driver: DriverType,
-): Promise<new (path: string) => DatabaseSyncType> {
+export type DriverModule = new (path: string) => DatabaseSyncType;
+
+// Pre-loaded drivers (loaded via top-level await)
+let nodeSqliteDriver: DriverModule | null = null;
+let bunSqliteDriver: DriverModule | null = null;
+let betterSqlite3Driver: DriverModule | null = null;
+
+// Preload drivers using top-level await
+// This allows synchronous access to drivers without await in constructors
+try {
+  const { DatabaseSync } = await import("node:sqlite");
+  nodeSqliteDriver = DatabaseSync as DriverModule;
+} catch {
+  // node:sqlite not available, continue
+}
+
+try {
+  // @ts-expect-error - bun:sqlite only available in Bun runtime
+  const { Database } = await import("bun:sqlite");
+  bunSqliteDriver = Database as DriverModule;
+} catch {
+  // bun:sqlite not available, continue
+}
+
+try {
+  // @ts-expect-error - better-sqlite3 is an optional dependency
+  const module = await import("better-sqlite3");
+  betterSqlite3Driver = module.default as DriverModule;
+} catch {
+  // better-sqlite3 not available, continue
+}
+
+/**
+ * Load a specific SQLite driver synchronously
+ * @param driver - Driver type string OR a pre-loaded driver module
+ * @returns Driver constructor
+ */
+function loadSpecificDriver(
+  driver: DriverType | DriverModule,
+): DriverModule {
+  // If a driver module is passed directly, use it
+  if (typeof driver === "function") {
+    return driver;
+  }
+
   switch (driver) {
     case "node:sqlite": {
-      try {
-        const { DatabaseSync } = await import("node:sqlite");
-        return DatabaseSync as new (path: string) => DatabaseSyncType;
-      } catch {
+      if (!nodeSqliteDriver) {
         throw new Error(
           "node:sqlite is not available. Requires Node.js >= 22.5.0 with --experimental-sqlite flag.",
         );
       }
+      return nodeSqliteDriver;
     }
 
     case "bun:sqlite": {
-      try {
-        // @ts-expect-error - bun:sqlite only available in Bun runtime
-        const { Database } = await import("bun:sqlite");
-        return Database as new (path: string) => DatabaseSyncType;
-      } catch {
+      if (!bunSqliteDriver) {
         throw new Error("bun:sqlite is not available. Are you running in Bun?");
       }
+      return bunSqliteDriver;
     }
 
     case "better-sqlite3": {
-      try {
-        // @ts-expect-error - better-sqlite3 is an optional dependency
-        const module = await import("better-sqlite3");
-        return module.default as new (path: string) => DatabaseSyncType;
-      } catch {
+      if (!betterSqlite3Driver) {
         throw new Error(
           "better-sqlite3 is not installed. Install it with: npm install better-sqlite3",
         );
       }
+      return betterSqlite3Driver;
     }
 
     case "sqlite3": {
@@ -78,10 +111,19 @@ async function loadSpecificDriver(
   }
 }
 
-// Detect runtime environment and load appropriate SQLite module
-async function loadDatabaseClass(
-  preferredDriver: DriverType = "auto",
-): Promise<new (path: string) => DatabaseSyncType> {
+/**
+ * Detect runtime environment and load appropriate SQLite module synchronously
+ * @param preferredDriver - Preferred driver (defaults to "auto" for auto-detection)
+ * @returns Driver constructor
+ */
+function loadDatabaseClass(
+  preferredDriver: DriverType | DriverModule = "auto",
+): DriverModule {
+  // If a driver module is passed directly, use it
+  if (typeof preferredDriver === "function") {
+    return preferredDriver;
+  }
+
   // If specific driver is requested, load it
   if (preferredDriver !== "auto") {
     return loadSpecificDriver(preferredDriver);
@@ -115,7 +157,7 @@ async function loadDatabaseClass(
     ];
     for (const driver of drivers) {
       try {
-        return await loadSpecificDriver(driver);
+        return loadSpecificDriver(driver);
       } catch {
         continue;
       }
@@ -125,7 +167,7 @@ async function loadDatabaseClass(
     const drivers: DriverType[] = ["node:sqlite", "better-sqlite3"];
     for (const driver of drivers) {
       try {
-        return await loadSpecificDriver(driver);
+        return loadSpecificDriver(driver);
       } catch {
         continue;
       }
@@ -142,34 +184,34 @@ async function loadDatabaseClass(
 
 // Cache for database classes by driver type
 const databaseClassCache = new Map<
-  DriverType,
-  new (path: string) => DatabaseSyncType
+  DriverType | DriverModule,
+  DriverModule
 >();
 
 /**
- * Get the appropriate SQLite database class for the current runtime
+ * Get the appropriate SQLite database class for the current runtime (synchronous)
  * Lazily loads and caches the database class on first call
- * @param driver - Preferred driver (defaults to "auto" for auto-detection)
+ * @param driver - Preferred driver (defaults to "auto" for auto-detection) or a pre-loaded driver module
  */
-export async function getDatabaseClass(
-  driver: DriverType = "auto",
-): Promise<new (path: string) => DatabaseSyncType> {
+export function getDatabaseClass(
+  driver: DriverType | DriverModule = "auto",
+): DriverModule {
   if (!databaseClassCache.has(driver)) {
-    const DatabaseClass = await loadDatabaseClass(driver);
+    const DatabaseClass = loadDatabaseClass(driver);
     databaseClassCache.set(driver, DatabaseClass);
   }
   return databaseClassCache.get(driver)!;
 }
 
 /**
- * Create a new SQLite database instance
+ * Create a new SQLite database instance (synchronous)
  * @param path - Database file path or ":memory:" for in-memory database
- * @param driver - Preferred driver (defaults to "auto" for auto-detection)
+ * @param driver - Preferred driver (defaults to "auto" for auto-detection) or a pre-loaded driver module
  */
-export async function createDatabase(
+export function createDatabase(
   path: string,
-  driver: DriverType = "auto",
-): Promise<DatabaseSyncType> {
-  const DatabaseClass = await getDatabaseClass(driver);
+  driver: DriverType | DriverModule = "auto",
+): DatabaseSyncType {
+  const DatabaseClass = getDatabaseClass(driver);
   return new DatabaseClass(path);
 }

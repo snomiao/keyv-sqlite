@@ -1,15 +1,20 @@
 import EventEmitter from "node:events";
 import Keyv, { type KeyvStoreAdapter, type StoredData } from "keyv";
-import { createDatabase, type DatabaseSyncType } from "./sqliteAdapter.js";
+import {
+  createDatabase,
+  type DatabaseSyncType,
+  type DriverModule,
+  type DriverType,
+} from "./sqliteAdapter.js";
 
 type KeyvSqliteOptions = {
   dialect?: string;
   uri?: string;
   table?: string;
-  enableWALMode?: boolean;
+  wal?: boolean;
   busyTimeout?: number;
   iterationLimit?: number | string;
-  driver?: "auto" | "node:sqlite" | "bun:sqlite" | "better-sqlite3" | "sqlite3";
+  driver?: DriverType | DriverModule;
 };
 
 type CacheObject = {
@@ -31,7 +36,7 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
   sqlite: DatabaseSyncType;
   fetchCaches: (...args: string[]) => CacheObject[];
   deleteCaches: (...args: string[]) => number;
-  updateCatches: (args: [string, unknown][], ttl?: number) => void;
+  updateCaches: (args: [string, unknown][], ttl?: number) => void;
   emptyCaches: () => void;
   findCaches: (
     namespace: string | undefined,
@@ -39,58 +44,57 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
     offset: number,
     expiredAt: number,
   ) => CacheObject[];
-
+  
   /**
-   * Create a new KeyvSqlite instance
-   * @param options - Configuration options
-   * @returns Promise that resolves to a KeyvSqlite instance
+   * Create a new KeyvSqlite instance (synchronous)
+   * @param options - Configuration options or database file path
+   * @example
+   * // Using a file path directly
+   * const store = new KeyvSqlite('./mydb.sqlite');
+   *
+   * // Using auto-detected driver (node:sqlite or bun:sqlite preloaded via top-level await)
+   * const store = new KeyvSqlite({ uri: 'mydb.sqlite' });
+   *
+   * // Using a specific driver
+   * const store = new KeyvSqlite({ uri: 'mydb.sqlite', driver: 'node:sqlite' });
+   *
+   * // Using a pre-loaded driver module
+   * import Database from 'better-sqlite3';
+   * const store = new KeyvSqlite({ uri: 'mydb.sqlite', driver: Database });
    */
-  static async create(options?: KeyvSqliteOptions): Promise<KeyvSqlite> {
-    const instance = Object.create(KeyvSqlite.prototype);
-    EventEmitter.call(instance);
+  constructor(options?: KeyvSqliteOptions | string) {
+    super();
 
-    instance.ttlSupport = true;
-    instance.opts = {
+    // Normalize options - allow passing URI directly as a string
+    const normalizedOptions = typeof options === 'string'
+      ? { uri: options }
+      : options;
+
+    this.ttlSupport = true;
+    this.opts = {
       dialect: "sqlite",
       table: "caches",
       busyTimeout: 5000,
-      enableWALMode: true, // Enable WAL mode by default
-      ...options,
+      wal: true, // Enable WAL mode by default
+      ...normalizedOptions,
     };
 
-    // Create database connection using environment-appropriate SQLite module
-    instance.sqlite = await createDatabase(
-      instance.opts.uri || ":memory:",
-      instance.opts.driver || "auto",
+    // Create database connection using environment-appropriate SQLite module (now synchronous!)
+    this.sqlite = createDatabase(
+      this.opts.uri || ":memory:",
+      this.opts.driver || "auto",
     );
 
-    if (instance.opts.enableWALMode) {
-      instance.sqlite.exec("PRAGMA journal_mode = WAL");
+    if (this.opts.wal) {
+      this.sqlite.exec("PRAGMA journal_mode = WAL");
     }
 
-    if (instance.opts.busyTimeout) {
-      instance.sqlite.exec(
-        `PRAGMA busy_timeout = ${instance.opts.busyTimeout}`,
+    if (this.opts.busyTimeout) {
+      this.sqlite.exec(
+        `PRAGMA busy_timeout = ${this.opts.busyTimeout}`,
       );
     }
 
-    instance._initializePreparedStatements();
-
-    return instance;
-  }
-
-  /**
-   * @deprecated Use KeyvSqlite.create() instead for proper async initialization
-   */
-  constructor(_options?: KeyvSqliteOptions) {
-    super();
-    throw new Error(
-      "Direct instantiation is deprecated. Use KeyvSqlite.create() instead:\n" +
-        "  const store = await KeyvSqlite.create(options);",
-    );
-  }
-
-  private _initializePreparedStatements(): void {
     const tableName = this.opts.table;
 
     this.sqlite.exec(`
@@ -181,7 +185,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
       return changes;
     };
 
-    this.updateCatches = (args, ttl) => {
+    this.updateCaches = (args, ttl) => {
       const createdAt = now();
       const expiredAt =
         ttl != undefined && ttl != 0 ? createdAt + ttl * 1000 : -1;
@@ -226,7 +230,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
   async set<T>(key: string, value: T, ttl?: number) {
     return new Promise((resolve, reject) => {
       try {
-        this.updateCatches([[key, value]], ttl);
+        this.updateCaches([[key, value]], ttl);
         resolve(value);
       } catch (e) {
         reject(e);
@@ -282,11 +286,21 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
 }
 
 /**
- * Create a Keyv instance with KeyvSqlite storage
- * @param keyvOptions - Configuration options for KeyvSqlite
- * @returns Promise that resolves to a Keyv instance
+ * Create a Keyv instance with KeyvSqlite storage (synchronous)
+ * @param keyvOptions - Configuration options for KeyvSqlite or database file path
+ * @returns Keyv instance
  */
-export const createKeyv = async (keyvOptions?: KeyvSqliteOptions) => {
-  const store = await KeyvSqlite.create(keyvOptions);
+export const createKeyv = (keyvOptions?: KeyvSqliteOptions | string) => {
+  const store = new KeyvSqlite(keyvOptions);
   return new Keyv({ store });
+};
+
+/**
+ * Create a Keyv instance with KeyvSqlite storage (async for backwards compatibility)
+ * @param keyvOptions - Configuration options for KeyvSqlite or database file path
+ * @returns Promise that resolves to a Keyv instance
+ * @deprecated Use `createKeyv(options)` instead (now synchronous)
+ */
+export const createKeyvAsync = async (keyvOptions?: KeyvSqliteOptions | string) => {
+  return createKeyv(keyvOptions);
 };

@@ -30,13 +30,13 @@ const argsCount = 2;
 
 const keys = Array.from({ length: 10000 }, (_, i) => i + 1);
 
-beforeAll(async () => {
+beforeAll(() => {
   console.log(`\n🔧 Benchmark Configuration:`);
   console.log(`   Driver: ${driver}`);
   console.log(`   WAL Mode: ${enableWAL}`);
   console.log(`   Database: ${sqliteFile}\n`);
 
-  sqlite = await createDatabase(sqliteFile, driver);
+  sqlite = createDatabase(sqliteFile, driver);
 
   if (enableWAL) {
     sqlite.exec("PRAGMA journal_mode = WAL");

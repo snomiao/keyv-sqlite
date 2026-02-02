@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsdown",
     "bench": "vitest bench --run --config=vitest.bench.config.ts",
-    "test": "vitest --ui",
+    "test": "node --experimental-sqlite --no-warnings ./node_modules/.bin/vitest --ui",
     "check": "oxlint src && oxfmt src",
     "format": "oxfmt --write src"
   },
@@ -37,6 +37,7 @@
     "@keyv/test-suite": "^2.0.2",
     "@types/node": "^25.1.0",
     "@vitest/ui": "^2.1.4",
+    "better-sqlite3": "^12.6.2",
     "keyv": "^5.2.1",
     "oxfmt": "^0.14.0",
     "oxlint": "^1.39.0",
