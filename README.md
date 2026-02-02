@@ -173,9 +173,29 @@ This fork (`@snomiao/keyv-sqlite`) differs from the original `@resolid/keyv-sqli
 
 ### Key Innovation
 
-The main difference is **multi-driver support with automatic runtime detection**. The fork abstracts SQLite driver implementations, allowing it to work across different runtimes (Node.js, Bun, Deno) while automatically selecting the best available driver.
+The main difference is **multi-driver support with automatic runtime detection**:
 
-Native drivers (`node:sqlite`, `bun:sqlite`) are pre-loaded using top-level await, providing zero-overhead driver access.
+**Upstream approach:**
+```typescript
+import Database from "better-sqlite3";  // ← Hardcoded, must have better-sqlite3
+```
+
+**This fork approach:**
+```typescript
+// Pre-loads native drivers at module initialization (top-level await)
+let nodeSqliteDriver = await import("node:sqlite");      // ← Zero dependencies!
+let bunSqliteDriver = await import("bun:sqlite");        // ← Zero dependencies!
+let betterSqlite3 = await import("better-sqlite3");      // ← Fallback
+
+// Auto-selects best available driver
+// OR accepts custom driver: new KeyvSqlite({ driver: MyCustomDriver })
+```
+
+This allows the fork to:
+1. **Prefer native drivers** (zero dependencies, no compilation)
+2. **Fall back gracefully** to better-sqlite3 if needed
+3. **Accept custom drivers** for maximum flexibility
+4. **Work across runtimes** (Node.js, Bun, Deno) seamlessly
 
 ### Migration from Original
 
