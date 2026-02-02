@@ -2,7 +2,7 @@
 
 A high-performance SQLite cache store for [keyv](https://github.com/jaredwray/keyv) with support for multiple SQLite drivers.
 
-> **Note:** This is a fork of [@resolid/keyv-sqlite](https://github.com/huijiewei/keyv-sqlite) by [@huijiewei](https://github.com/huijiewei) with a synchronous constructor API using top-level await. See [comparison below](#fork-differences).
+> **Note:** This is a fork of [@resolid/keyv-sqlite](https://github.com/huijiewei/keyv-sqlite) by [@huijiewei](https://github.com/huijiewei) with **multi-driver support** for `node:sqlite`, `bun:sqlite`, and `better-sqlite3`. See [comparison below](#fork-differences).
 
 ## Installation
 
