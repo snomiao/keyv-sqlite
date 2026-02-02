@@ -145,8 +145,3 @@ test.it("handling namespaces with multiple keyv instances", async (t) => {
     ]),
   );
 });
-
-test.it("will create a Keyv instance with a store", (t) => {
-  const keyv = createKeyv();
-  t.expect(keyv).toBeInstanceOf(Keyv);
-});

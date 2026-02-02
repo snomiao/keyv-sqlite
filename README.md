@@ -15,7 +15,7 @@ npm i @snomiao/keyv-sqlite
 ### Basic Usage
 
 ```typescript
-import { KeyvSqlite } from '@snomiao/keyv-sqlite';
+import KeyvSqlite from '@snomiao/keyv-sqlite';  // or: import { KeyvSqlite } from '...'
 import Keyv from "keyv";
 
 // Simple file path (recommended), note: WAL mode is enabled by default

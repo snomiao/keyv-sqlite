@@ -28,6 +28,9 @@ const now = () => {
   return new Date().getTime();
 };
 
+/**
+ * Keyv SQLite storage adapter (synchronous)
+ */
 export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
   ttlSupport: boolean;
   opts: KeyvSqliteOptions;
@@ -304,3 +307,6 @@ export const createKeyv = (keyvOptions?: KeyvSqliteOptions | string) => {
 export const createKeyvAsync = async (keyvOptions?: KeyvSqliteOptions | string) => {
   return createKeyv(keyvOptions);
 };
+
+// Default export for simpler imports
+export default KeyvSqlite;
