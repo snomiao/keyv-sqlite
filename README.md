@@ -160,11 +160,21 @@ This fork (`@snomiao/keyv-sqlite`) differs from the original `@resolid/keyv-sqli
 
 | Feature | Original (@resolid) | This Fork (@snomiao) |
 |---------|---------------------|----------------------|
-| Constructor | ❌ Async factory only | ✅ Synchronous constructor |
-| Usage | `await KeyvSqlite.create(opts)` | `new KeyvSqlite(opts)` |
-| String parameter | ❌ No | ✅ Yes (`new KeyvSqlite('./db')`) |
-| Driver loading | ⏳ Async on-demand | ⚡ Pre-loaded (top-level await) |
-| API pattern | Async factory | Standard constructor |
+| **SQLite drivers** | ✅ better-sqlite3 only | ✅ Multi-driver (node:sqlite, bun:sqlite, better-sqlite3) |
+| **Auto-detection** | ❌ No | ✅ Yes (picks best driver for runtime) |
+| **Native drivers** | ❌ No | ✅ node:sqlite (Node 22.5+), bun:sqlite |
+| **Cross-runtime** | ⚠️ Node.js only | ✅ Node.js, Bun, Deno |
+| **Driver abstraction** | ❌ No | ✅ Yes (sqliteAdapter.ts with top-level await) |
+| **String parameter** | ❌ No | ✅ Yes (`new KeyvSqlite('./db')`) |
+| **Benchmark workflow** | ❌ No | ✅ Comprehensive multi-driver benchmarks |
+| **Build tool** | tsup | tsdown |
+| **Linter** | biome | oxlint + oxfmt |
+
+### Key Innovation
+
+The main difference is **multi-driver support with automatic runtime detection**. The fork abstracts SQLite driver implementations, allowing it to work across different runtimes (Node.js, Bun, Deno) while automatically selecting the best available driver.
+
+Native drivers (`node:sqlite`, `bun:sqlite`) are pre-loaded using top-level await, providing zero-overhead driver access.
 
 ### Migration from Original
 
@@ -173,18 +183,18 @@ If migrating from `@resolid/keyv-sqlite`:
 ```diff
 - npm install @resolid/keyv-sqlite
 + npm install @snomiao/keyv-sqlite
-
-- const store = await KeyvSqlite.create({ uri: './cache.db' });
-+ const store = new KeyvSqlite('./cache.db');
 ```
 
-**Breaking changes:**
-- `enableWALMode` option renamed to `wal`
-- Must use synchronous constructor instead of `KeyvSqlite.create()`
+The API is backwards compatible. Simply change the package name - your existing code will continue to work!
+
+**Optional improvements:**
+- Option name change: `enableWALMode` → `wal` (both work)
+- Can now use string parameter: `new KeyvSqlite('./db')`
+- Will auto-detect best driver (or specify with `driver` option)
 
 ### Credits
 
-This fork is based on the excellent work by **[@huijiewei](https://github.com/huijiewei)** in [keyv-sqlite](https://github.com/huijiewei/keyv-sqlite). The synchronous API improvement was implemented using top-level await for driver pre-loading.
+This fork is based on the excellent work by **[@huijiewei](https://github.com/huijiewei)** in [keyv-sqlite](https://github.com/huijiewei/keyv-sqlite). The multi-driver support and cross-runtime compatibility were built on top of their solid foundation.
 
 ## License
 
