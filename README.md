@@ -15,7 +15,7 @@ npm i @snomiao/keyv-sqlite
 ### Basic Usage
 
 ```typescript
-import { KeyvSqlite } from '@resolid/keyv-sqlite';
+import { KeyvSqlite } from '@snomiao/keyv-sqlite';
 import Keyv from "keyv";
 
 // Simple file path (recommended), note: WAL mode is enabled by default
@@ -34,7 +34,7 @@ const keyv = new Keyv({ store });
 ### Helper Function
 
 ```typescript
-import { createKeyv } from '@resolid/keyv-sqlite';
+import { createKeyv } from '@snomiao/keyv-sqlite';
 
 // Simple file path
 const keyv = createKeyv('./cache.db');
