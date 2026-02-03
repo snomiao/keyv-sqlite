@@ -1,6 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "include": ["src", "vitest.config.ts", "tsdown.config.ts"],
+  "include": [
+    "src",
+    "vitest.config.ts",
+    "tsdown.config.ts"
+  ],
   "compilerOptions": {
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -10,14 +14,14 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
-
     "module": "preserve",
     "noEmit": true,
-
-    "lib": ["es2022"]
+    "lib": [
+      "es2022"
+    ]
   }
 }

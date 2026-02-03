@@ -25,8 +25,7 @@
     "test": "node --experimental-sqlite --no-warnings ./node_modules/.bin/vitest --ui",
     "check": "oxlint src && oxfmt src",
     "format": "oxfmt --write src",
-    "example": "tsx examples/index.ts",
-    "example:node": "node --experimental-sqlite --no-warnings --import tsx examples/index.ts",
+    "example:node": "node --experimental-sqlite --no-warnings examples/index.ts",
     "example:bun": "bun examples/index.ts"
   },
   "exports": {
