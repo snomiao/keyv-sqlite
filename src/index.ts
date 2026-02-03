@@ -5,7 +5,7 @@ import {
   type DatabaseSyncType,
   type DriverModule,
   type DriverType,
-} from "./sqliteAdapter.js";
+} from "./sqliteAdapter.ts";
 
 type KeyvSqliteOptions = {
   dialect?: string;
@@ -35,6 +35,7 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
   ttlSupport: boolean;
   opts: KeyvSqliteOptions;
   namespace?: string;
+  private _closed = false;
 
   sqlite: DatabaseSyncType;
   fetchCaches: (...args: string[]) => CacheObject[];
@@ -168,7 +169,18 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
               .filter((data) => data != null);
 
       if (purgeExpired) {
-        process.nextTick(() => purgeStatement.run(ts));
+        process.nextTick(() => {
+          if (!this._closed) {
+            try {
+              purgeStatement.run(ts);
+            } catch (err) {
+              // Ignore errors if statement has been finalized
+              if ((err as Error)?.message !== "statement has been finalized") {
+                throw err;
+              }
+            }
+          }
+        });
       }
 
       return result as CacheObject[];
@@ -284,6 +296,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
   }
 
   async disconnect() {
+    this._closed = true;
     this.sqlite.close();
   }
 }
