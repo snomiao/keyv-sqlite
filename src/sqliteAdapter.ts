@@ -2,6 +2,9 @@
 // Supports: Node.js (node:sqlite), Bun (bun:sqlite), Deno (node:sqlite)
 // Also supports: better-sqlite3, sqlite3 (via npm packages)
 
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+
 export type DatabaseSyncType = {
   exec(sql: string): void;
   prepare<T = unknown>(
@@ -212,6 +215,21 @@ export function createDatabase(
   path: string,
   driver: DriverType | DriverModule = "auto",
 ): DatabaseSyncType {
+  // Create parent directory automatically if path is not in-memory
+  if (path !== ":memory:") {
+    const dir = dirname(path);
+    if (dir && dir !== ".") {
+      try {
+        mkdirSync(dir, { recursive: true });
+      } catch (error) {
+        // Ignore error if directory already exists
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+          throw error;
+        }
+      }
+    }
+  }
+
   const DatabaseClass = getDatabaseClass(driver);
   return new DatabaseClass(path);
 }

@@ -150,12 +150,12 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
                 }
                 return data;
               })
-              .filter((data) => data !== undefined)
+              .filter((data) => data != null)
           : args
               .map((key) => {
                 const data = selectSingleStatement.get(key);
                 if (
-                  data !== undefined &&
+                  data != null &&
                   data.expiredAt !== -1 &&
                   data.expiredAt < ts
                 ) {
@@ -165,7 +165,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
 
                 return data;
               })
-              .filter((data) => data !== undefined);
+              .filter((data) => data != null);
 
       if (purgeExpired) {
         process.nextTick(() => purgeStatement.run(ts));
@@ -204,7 +204,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
     this.findCaches = (namespace, limit, offset, expiredAt) => {
       return finderStatement
         .all(`${namespace ? `${namespace}:` : ""}%`, expiredAt, limit, offset)
-        .filter((data) => data !== undefined);
+        .filter((data) => data != null);
     };
   }
 

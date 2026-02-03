@@ -6,3 +6,11 @@ build
 .idea
 .vscode
 .eslintcache
+
+# Example database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
