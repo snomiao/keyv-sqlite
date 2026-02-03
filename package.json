@@ -1,6 +1,6 @@
 {
   "name": "@snomiao/keyv-sqlite",
-  "version": "5.0.3",
+  "version": "5.0.4",
   "description": "Multi-driver SQLite storage adapter for Keyv with support for node:sqlite, bun:sqlite, and better-sqlite3.",
   "keywords": [
     "keyv",
