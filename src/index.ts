@@ -205,8 +205,13 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
       const expiredAt =
         ttl != undefined && ttl != 0 ? createdAt + ttl * 1000 : -1;
 
-      for (const cache of args)
-        updateStatement.run(cache[0], cache[1], createdAt, expiredAt);
+      for (const cache of args) {
+        // Serialize value to string if it's not already
+        const serializedValue = typeof cache[1] === 'string'
+          ? cache[1]
+          : JSON.stringify(cache[1]);
+        updateStatement.run(cache[0], serializedValue, createdAt, expiredAt);
+      }
     };
 
     this.emptyCaches = () => {
@@ -227,7 +232,17 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
       return undefined;
     }
 
-    return rows[0].cacheData as Value;
+    const data = rows[0].cacheData;
+    // Deserialize if it's a JSON string, otherwise return as-is
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data) as Value;
+      } catch {
+        // If parsing fails, return the string as-is
+        return data as Value;
+      }
+    }
+    return data as Value;
   }
 
   async getMany<Value>(
@@ -238,7 +253,21 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
     return keys.map((key) => {
       const row = rows.find((row) => row.cacheKey === key);
 
-      return (row ? row.cacheData : undefined) as StoredData<Value | undefined>;
+      if (!row) {
+        return undefined as StoredData<Value | undefined>;
+      }
+
+      const data = row.cacheData;
+      // Deserialize if it's a JSON string, otherwise return as-is
+      if (typeof data === 'string') {
+        try {
+          return JSON.parse(data) as StoredData<Value | undefined>;
+        } catch {
+          // If parsing fails, return the string as-is
+          return data as StoredData<Value | undefined>;
+        }
+      }
+      return data as StoredData<Value | undefined>;
     });
   }
 
@@ -286,7 +315,17 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
       for (const entry of entries) {
         // biome-ignore lint: <explanation>
         offset += 1;
-        yield [entry.cacheKey, entry.cacheData];
+
+        // Deserialize if it's a JSON string, otherwise return as-is
+        let value = entry.cacheData;
+        if (typeof value === 'string') {
+          try {
+            value = JSON.parse(value);
+          } catch {
+            // If parsing fails, keep the string as-is
+          }
+        }
+        yield [entry.cacheKey, value];
       }
 
       yield* iterate(offset);
