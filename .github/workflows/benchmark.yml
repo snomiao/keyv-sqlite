@@ -19,21 +19,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '22.x'
-          cache: 'npm'
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - name: Install driver (${{ matrix.driver }})
         if: matrix.driver == 'better-sqlite3'
-        run: npm install better-sqlite3
+        run: bun install better-sqlite3
 
       - name: Build project
-        run: npm run build
+        run: bun run build
 
       - name: Sanitize driver name
         id: driver
