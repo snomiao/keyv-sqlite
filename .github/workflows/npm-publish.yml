@@ -56,14 +56,30 @@ jobs:
         if: steps.skip_check.outputs.skip == 'false'
         id: version_bump
         run: |
-          # Check commit message for version bump type
+          # Parse conventional commit message
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          if echo "$COMMIT_MSG" | grep -qi "\[major\]"; then
+          COMMIT_SUBJECT=$(echo "$COMMIT_MSG" | head -n1)
+
+          echo "Commit message: $COMMIT_SUBJECT"
+
+          # Check for breaking changes (major version)
+          # Look for BREAKING CHANGE: in body or ! after type/scope
+          if echo "$COMMIT_MSG" | grep -q "BREAKING CHANGE:" || \
+             echo "$COMMIT_SUBJECT" | grep -qE "^[a-z]+(\([a-z0-9-]+\))?!:"; then
             echo "type=major" >> $GITHUB_OUTPUT
-          elif echo "$COMMIT_MSG" | grep -qi "\[minor\]"; then
+            echo "Detected: BREAKING CHANGE (major)"
+          # Check for feat: (minor version)
+          elif echo "$COMMIT_SUBJECT" | grep -qE "^feat(\([a-z0-9-]+\))?:"; then
             echo "type=minor" >> $GITHUB_OUTPUT
+            echo "Detected: feat (minor)"
+          # Check for fix: or any other type (patch version)
+          elif echo "$COMMIT_SUBJECT" | grep -qE "^(fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?:"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "Detected: $COMMIT_SUBJECT (patch)"
+          # Fallback to patch for non-conventional commits
           else
             echo "type=patch" >> $GITHUB_OUTPUT
+            echo "No conventional commit detected, defaulting to patch"
           fi
 
       - name: Bump version
