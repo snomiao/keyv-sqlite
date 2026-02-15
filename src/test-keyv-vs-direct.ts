@@ -7,7 +7,7 @@ const testKeyvVsDirect = async () => {
 
   const store = new KeyvSqlite({
     uri: ":memory:",
-    driver: "bun:sqlite"
+    driver: "bun:sqlite",
   });
 
   const keyv = new Keyv({ store });

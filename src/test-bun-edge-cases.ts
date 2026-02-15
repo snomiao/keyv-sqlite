@@ -7,7 +7,7 @@ const testEdgeCases = async () => {
 
   const store = new KeyvSqlite({
     uri: ":memory:",
-    driver: "bun:sqlite"
+    driver: "bun:sqlite",
   });
 
   const keyv = new Keyv({ store });
@@ -33,7 +33,10 @@ const testEdgeCases = async () => {
 
     // Test with Map
     console.log("3. Testing Map:");
-    const map = new Map([["key1", "value1"], ["key2", undefined]]);
+    const map = new Map([
+      ["key1", "value1"],
+      ["key2", undefined],
+    ]);
     await keyv.set("map-test", map);
     const retrieved3 = await keyv.get("map-test");
     console.log("Stored:", map);

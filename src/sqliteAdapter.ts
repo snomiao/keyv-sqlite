@@ -20,12 +20,7 @@ export type DatabaseSyncType = {
   close(): void;
 };
 
-export type DriverType =
-  | "auto"
-  | "node:sqlite"
-  | "bun:sqlite"
-  | "better-sqlite3"
-  | "sqlite3";
+export type DriverType = "auto" | "node:sqlite" | "bun:sqlite" | "better-sqlite3" | "sqlite3";
 
 export type DriverModule = new (path: string) => DatabaseSyncType;
 
@@ -64,9 +59,7 @@ try {
  * @param driver - Driver type string OR a pre-loaded driver module
  * @returns Driver constructor
  */
-function loadSpecificDriver(
-  driver: DriverType | DriverModule,
-): DriverModule {
+function loadSpecificDriver(driver: DriverType | DriverModule): DriverModule {
   // If a driver module is passed directly, use it
   if (typeof driver === "function") {
     return driver;
@@ -75,9 +68,7 @@ function loadSpecificDriver(
   switch (driver) {
     case "node:sqlite": {
       if (!nodeSqliteDriver) {
-        throw new Error(
-          "node:sqlite is not available. Requires Node.js >= 22.5.0 with --experimental-sqlite flag.",
-        );
+        throw new Error("node:sqlite is not available. Requires Node.js >= 22.5.0 with --experimental-sqlite flag.");
       }
       return nodeSqliteDriver;
     }
@@ -91,23 +82,17 @@ function loadSpecificDriver(
 
     case "better-sqlite3": {
       if (!betterSqlite3Driver) {
-        throw new Error(
-          "better-sqlite3 is not installed. Install it with: npm install better-sqlite3",
-        );
+        throw new Error("better-sqlite3 is not installed. Install it with: npm install better-sqlite3");
       }
       return betterSqlite3Driver;
     }
 
     case "sqlite3": {
-      throw new Error(
-        "sqlite3 driver is not yet implemented. Use better-sqlite3 or node:sqlite instead.",
-      );
+      throw new Error("sqlite3 driver is not yet implemented. Use better-sqlite3 or node:sqlite instead.");
     }
 
     case "auto":
-      throw new Error(
-        "Internal error: auto driver should be resolved before this point",
-      );
+      throw new Error("Internal error: auto driver should be resolved before this point");
 
     default:
       throw new Error(`Unknown driver: ${driver}`);
@@ -119,9 +104,7 @@ function loadSpecificDriver(
  * @param preferredDriver - Preferred driver (defaults to "auto" for auto-detection)
  * @returns Driver constructor
  */
-function loadDatabaseClass(
-  preferredDriver: DriverType | DriverModule = "auto",
-): DriverModule {
+function loadDatabaseClass(preferredDriver: DriverType | DriverModule = "auto"): DriverModule {
   // If a driver module is passed directly, use it
   if (typeof preferredDriver === "function") {
     return preferredDriver;
@@ -153,11 +136,7 @@ function loadDatabaseClass(
   // Try drivers in order of preference
   if (isBun) {
     // In Bun, prefer bun:sqlite
-    const drivers: DriverType[] = [
-      "bun:sqlite",
-      "better-sqlite3",
-      "node:sqlite",
-    ];
+    const drivers: DriverType[] = ["bun:sqlite", "better-sqlite3", "node:sqlite"];
     for (const driver of drivers) {
       try {
         return loadSpecificDriver(driver);
@@ -186,19 +165,14 @@ function loadDatabaseClass(
 }
 
 // Cache for database classes by driver type
-const databaseClassCache = new Map<
-  DriverType | DriverModule,
-  DriverModule
->();
+const databaseClassCache = new Map<DriverType | DriverModule, DriverModule>();
 
 /**
  * Get the appropriate SQLite database class for the current runtime (synchronous)
  * Lazily loads and caches the database class on first call
  * @param driver - Preferred driver (defaults to "auto" for auto-detection) or a pre-loaded driver module
  */
-export function getDatabaseClass(
-  driver: DriverType | DriverModule = "auto",
-): DriverModule {
+export function getDatabaseClass(driver: DriverType | DriverModule = "auto"): DriverModule {
   if (!databaseClassCache.has(driver)) {
     const DatabaseClass = loadDatabaseClass(driver);
     databaseClassCache.set(driver, DatabaseClass);
@@ -211,10 +185,7 @@ export function getDatabaseClass(
  * @param path - Database file path or ":memory:" for in-memory database
  * @param driver - Preferred driver (defaults to "auto" for auto-detection) or a pre-loaded driver module
  */
-export function createDatabase(
-  path: string,
-  driver: DriverType | DriverModule = "auto",
-): DatabaseSyncType {
+export function createDatabase(path: string, driver: DriverType | DriverModule = "auto"): DatabaseSyncType {
   // Create parent directory automatically if path is not in-memory
   if (path !== ":memory:") {
     const dir = dirname(path);

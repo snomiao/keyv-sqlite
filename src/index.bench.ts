@@ -1,10 +1,6 @@
 import { join } from "node:path";
 import { beforeAll, bench, describe } from "vitest";
-import {
-  createDatabase,
-  type DatabaseSyncType,
-  type DriverType,
-} from "./sqliteAdapter.js";
+import { createDatabase, type DatabaseSyncType, type DriverType } from "./sqliteAdapter.js";
 
 let sqlite: DatabaseSyncType;
 
@@ -19,11 +15,7 @@ if (!process.env.BENCHMARK_WAL) {
 const driver = process.env.BENCHMARK_DRIVER as DriverType;
 const enableWAL = process.env.BENCHMARK_WAL === "true";
 
-const sqliteFile = join(
-  process.cwd(),
-  "runtime",
-  `cache-${driver}-wal-${enableWAL}.sqlite3`,
-);
+const sqliteFile = join(process.cwd(), "runtime", `cache-${driver}-wal-${enableWAL}.sqlite3`);
 const cacheTableName = "caches";
 
 const argsCount = 2;
@@ -65,9 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${cacheTableName}(expiredAt);
 
 describe("sqlite select", () => {
   bench("select normal", () => {
-    const selectStatement = sqlite.prepare(
-      `SELECT * FROM ${cacheTableName} WHERE cacheKey = ?`,
-    );
+    const selectStatement = sqlite.prepare(`SELECT * FROM ${cacheTableName} WHERE cacheKey = ?`);
     const selectKeys = Array.from({ length: argsCount }, (_, i) => i + 1);
 
     for (const k of selectKeys) {
@@ -86,9 +76,7 @@ describe("sqlite select", () => {
 
 describe("sqlite delete", () => {
   bench("delete normal", () => {
-    const deleteStatement = sqlite.prepare(
-      `DELETE FROM ${cacheTableName} WHERE cacheKey = ?`,
-    );
+    const deleteStatement = sqlite.prepare(`DELETE FROM ${cacheTableName} WHERE cacheKey = ?`);
     const deleteKeys = Array.from({ length: argsCount }, (_, i) => i + 1000);
 
     for (const k of deleteKeys) {

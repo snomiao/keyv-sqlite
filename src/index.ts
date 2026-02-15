@@ -1,11 +1,6 @@
 import EventEmitter from "node:events";
 import Keyv, { type KeyvStoreAdapter, type StoredData } from "keyv";
-import {
-  createDatabase,
-  type DatabaseSyncType,
-  type DriverModule,
-  type DriverType,
-} from "./sqliteAdapter.ts";
+import { createDatabase, type DatabaseSyncType, type DriverModule, type DriverType } from "./sqliteAdapter.ts";
 
 type KeyvSqliteOptions = {
   dialect?: string;
@@ -42,13 +37,8 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
   deleteCaches: (...args: string[]) => number;
   updateCaches: (args: [string, unknown][], ttl?: number) => void;
   emptyCaches: () => void;
-  findCaches: (
-    namespace: string | undefined,
-    limit: number,
-    offset: number,
-    expiredAt: number,
-  ) => CacheObject[];
-  
+  findCaches: (namespace: string | undefined, limit: number, offset: number, expiredAt: number) => CacheObject[];
+
   /**
    * Create a new KeyvSqlite instance (synchronous)
    * @param options - Configuration options or database file path
@@ -70,9 +60,7 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
     super();
 
     // Normalize options - allow passing URI directly as a string
-    const normalizedOptions = typeof options === 'string'
-      ? { uri: options }
-      : options;
+    const normalizedOptions = typeof options === "string" ? { uri: options } : options;
 
     this.ttlSupport = true;
     this.opts = {
@@ -84,19 +72,14 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
     };
 
     // Create database connection using environment-appropriate SQLite module (now synchronous!)
-    this.sqlite = createDatabase(
-      this.opts.uri || ":memory:",
-      this.opts.driver || "auto",
-    );
+    this.sqlite = createDatabase(this.opts.uri || ":memory:", this.opts.driver || "auto");
 
     if (this.opts.wal) {
       this.sqlite.exec("PRAGMA journal_mode = WAL");
     }
 
     if (this.opts.busyTimeout) {
-      this.sqlite.exec(
-        `PRAGMA busy_timeout = ${this.opts.busyTimeout}`,
-      );
+      this.sqlite.exec(`PRAGMA busy_timeout = ${this.opts.busyTimeout}`);
     }
 
     const tableName = this.opts.table;
@@ -111,30 +94,22 @@ export class KeyvSqlite extends EventEmitter implements KeyvStoreAdapter {
 CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
 `);
 
-    const selectSingleStatement = this.sqlite.prepare<CacheObject>(
-      `SELECT * FROM ${tableName} WHERE cacheKey = ?`,
-    );
+    const selectSingleStatement = this.sqlite.prepare<CacheObject>(`SELECT * FROM ${tableName} WHERE cacheKey = ?`);
     const selectStatement = this.sqlite.prepare<CacheObject>(
       `SELECT * FROM ${tableName} WHERE cacheKey IN (SELECT value FROM json_each(?))`,
     );
     const updateStatement = this.sqlite.prepare(
       `INSERT OR REPLACE INTO ${tableName}(cacheKey, cacheData, createdAt, expiredAt) VALUES (?, ?, ?, ?)`,
     );
-    const deleteSingleStatement = this.sqlite.prepare(
-      `DELETE FROM ${tableName} WHERE cacheKey = ?`,
-    );
+    const deleteSingleStatement = this.sqlite.prepare(`DELETE FROM ${tableName} WHERE cacheKey = ?`);
     const deleteStatement = this.sqlite.prepare(
       `DELETE FROM ${tableName} WHERE cacheKey IN (SELECT value FROM json_each(?))`,
     );
     const finderStatement = this.sqlite.prepare<CacheObject>(
       `SELECT * FROM ${tableName} WHERE cacheKey LIKE ? AND (expiredAt = -1 OR expiredAt > ?) LIMIT ? OFFSET ?`,
     );
-    const purgeStatement = this.sqlite.prepare(
-      `DELETE FROM ${tableName} WHERE expiredAt != -1 AND expiredAt < ?`,
-    );
-    const emptyStatement = this.sqlite.prepare(
-      `DELETE FROM ${tableName} WHERE cacheKey LIKE ?`,
-    );
+    const purgeStatement = this.sqlite.prepare(`DELETE FROM ${tableName} WHERE expiredAt != -1 AND expiredAt < ?`);
+    const emptyStatement = this.sqlite.prepare(`DELETE FROM ${tableName} WHERE cacheKey LIKE ?`);
 
     this.fetchCaches = (...args) => {
       const ts = now();
@@ -155,11 +130,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
           : args
               .map((key) => {
                 const data = selectSingleStatement.get(key);
-                if (
-                  data != null &&
-                  data.expiredAt !== -1 &&
-                  data.expiredAt < ts
-                ) {
+                if (data != null && data.expiredAt !== -1 && data.expiredAt < ts) {
                   purgeExpired = true;
                   return undefined;
                 }
@@ -203,9 +174,8 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
     this.updateCaches = (args, ttl) => {
       const createdAt = now();
       // Ensure TTL is a valid number or fallback to -1 (no expiration)
-      const safeTTL = typeof ttl === 'number' && !isNaN(ttl) && isFinite(ttl) ? ttl : undefined;
-      const expiredAt =
-        safeTTL != undefined && safeTTL != 0 ? createdAt + safeTTL * 1000 : -1;
+      const safeTTL = typeof ttl === "number" && !isNaN(ttl) && isFinite(ttl) ? ttl : undefined;
+      const expiredAt = safeTTL != undefined && safeTTL != 0 ? createdAt + safeTTL * 1000 : -1;
 
       for (const cache of args) {
         const rawValue = cache[1];
@@ -213,9 +183,10 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
         // Serialize value to JSON string for SQLite storage
         // Keyv passes already-serialized strings, so we only serialize non-strings
         // This ensures compatibility both with Keyv wrapper and direct usage
-        const serializedValue = typeof rawValue === 'string'
-          ? rawValue  // Already serialized by Keyv
-          : JSON.stringify(rawValue);  // Direct usage - serialize it
+        const serializedValue =
+          typeof rawValue === "string"
+            ? rawValue // Already serialized by Keyv
+            : JSON.stringify(rawValue); // Direct usage - serialize it
 
         updateStatement.run(cache[0], serializedValue, createdAt, expiredAt);
       }
@@ -242,9 +213,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
     return rows[0].cacheData as Value;
   }
 
-  async getMany<Value>(
-    keys: string[],
-  ): Promise<Array<StoredData<Value | undefined>>> {
+  async getMany<Value>(keys: string[]): Promise<Array<StoredData<Value | undefined>>> {
     const rows = this.fetchCaches(...keys);
 
     return keys.map((key) => {
@@ -282,8 +251,7 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
   }
 
   async *iterator(namespace?: string) {
-    const limit =
-      Number.parseInt(this.opts.iterationLimit! as string, 10) || 10;
+    const limit = Number.parseInt(this.opts.iterationLimit! as string, 10) || 10;
     const time = now();
     const find = this.findCaches;
 
@@ -296,7 +264,6 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
       }
 
       for (const entry of entries) {
-        // biome-ignore lint: <explanation>
         offset += 1;
         yield [entry.cacheKey, entry.cacheData];
       }

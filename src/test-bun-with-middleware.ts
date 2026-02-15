@@ -9,7 +9,7 @@ const testWithMiddleware = async () => {
 
   const store = new KeyvSqlite({
     uri: ":memory:",
-    driver: "bun:sqlite"
+    driver: "bun:sqlite",
   });
 
   const keyv = new Keyv({ store });
@@ -42,7 +42,7 @@ const testWithMiddleware = async () => {
       c: { nested: true },
       d: [1, 2, 3],
       e: undefined,
-      f: null
+      f: null,
     };
     await nested.set("test.complex", complexObj);
     const value4 = await nested.get("test.complex");

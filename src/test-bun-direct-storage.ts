@@ -7,7 +7,7 @@ const testDirectStorage = async () => {
 
   const store = new KeyvSqlite({
     uri: ":memory:",
-    driver: "bun:sqlite"
+    driver: "bun:sqlite",
   });
 
   try {

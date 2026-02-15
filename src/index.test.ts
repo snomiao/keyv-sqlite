@@ -2,7 +2,7 @@ import { join } from "node:path";
 import keyvTestSuite from "@keyv/test-suite";
 import Keyv from "keyv";
 import * as test from "vitest";
-import { KeyvSqlite, createKeyv } from "./index";
+import { KeyvSqlite } from "./index";
 
 const sqliteFile = join(process.cwd(), "runtime", "cache.sqlite3");
 

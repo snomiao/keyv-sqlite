@@ -1,5 +1,4 @@
 // Test case to reproduce Bun SQLite undefined binding error
-import { Database } from "bun:sqlite";
 import Keyv from "keyv";
 import { KeyvSqlite } from "./index";
 
@@ -8,7 +7,7 @@ const testBunUndefined = async () => {
 
   const store = new KeyvSqlite({
     uri: ":memory:",
-    driver: "bun:sqlite"
+    driver: "bun:sqlite",
   });
 
   const keyv = new Keyv({ store });
