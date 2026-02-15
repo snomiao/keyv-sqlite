@@ -23,6 +23,7 @@
     "build": "tsdown",
     "bench": "vitest bench --run --config=vitest.bench.config.ts",
     "test": "node --experimental-sqlite --no-warnings ./node_modules/.bin/vitest --ui",
+    "test:ci": "node --experimental-sqlite --no-warnings ./node_modules/.bin/vitest --run",
     "check": "oxlint src && oxfmt src",
     "format": "oxfmt --write src",
     "example:node": "node --experimental-sqlite --no-warnings examples/index.ts",
