@@ -1,3 +1,10 @@
+## [5.1.2](https://github.com/snomiao/keyv-sqlite/compare/v5.1.1...v5.1.2) (2026-02-15)
+
+
+### Bug Fixes
+
+* **bun:** serialize non-string values for direct storage usage ([e6b7e9b](https://github.com/snomiao/keyv-sqlite/commit/e6b7e9bab30bd658a8b134304a99b2fca100bffe))
+
 ## [5.1.1](https://github.com/snomiao/keyv-sqlite/compare/v5.1.0...v5.1.1) (2026-02-15)
 
 
