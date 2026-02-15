@@ -202,11 +202,16 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
 
     this.updateCaches = (args, ttl) => {
       const createdAt = now();
+      // Ensure TTL is a valid number or fallback to -1 (no expiration)
+      const safeTTL = typeof ttl === 'number' && !isNaN(ttl) && isFinite(ttl) ? ttl : undefined;
       const expiredAt =
-        ttl != undefined && ttl != 0 ? createdAt + ttl * 1000 : -1;
+        safeTTL != undefined && safeTTL != 0 ? createdAt + safeTTL * 1000 : -1;
 
-      for (const cache of args)
-        updateStatement.run(cache[0], cache[1], createdAt, expiredAt);
+      for (const cache of args) {
+        // Ensure undefined values are converted to null for SQLite compatibility
+        const value = cache[1] === undefined ? null : cache[1];
+        updateStatement.run(cache[0], value, createdAt, expiredAt);
+      }
     };
 
     this.emptyCaches = () => {

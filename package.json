@@ -46,6 +46,8 @@
     "@vitest/ui": "^2.1.4",
     "better-sqlite3": "^12.6.2",
     "keyv": "^5.2.1",
+    "keyv-cache-proxy": "^0.2.0",
+    "keyv-nest": "^0.0.7",
     "oxfmt": "^0.14.0",
     "oxlint": "^1.39.0",
     "semantic-release": "^25.0.3",
