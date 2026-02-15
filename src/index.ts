@@ -208,9 +208,16 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
         safeTTL != undefined && safeTTL != 0 ? createdAt + safeTTL * 1000 : -1;
 
       for (const cache of args) {
-        // Ensure undefined values are converted to null for SQLite compatibility
-        const value = cache[1] === undefined ? null : cache[1];
-        updateStatement.run(cache[0], value, createdAt, expiredAt);
+        const rawValue = cache[1];
+
+        // Serialize value to JSON string for SQLite storage
+        // Keyv passes already-serialized strings, so we only serialize non-strings
+        // This ensures compatibility both with Keyv wrapper and direct usage
+        const serializedValue = typeof rawValue === 'string'
+          ? rawValue  // Already serialized by Keyv
+          : JSON.stringify(rawValue);  // Direct usage - serialize it
+
+        updateStatement.run(cache[0], serializedValue, createdAt, expiredAt);
       }
     };
 
