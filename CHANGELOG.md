@@ -1,3 +1,10 @@
+## [5.1.1](https://github.com/snomiao/keyv-sqlite/compare/v5.1.0...v5.1.1) (2026-02-15)
+
+
+### Bug Fixes
+
+* **bun:** handle undefined values and invalid TTL in SQLite bindings ([f59e70f](https://github.com/snomiao/keyv-sqlite/commit/f59e70fcaf304ae116f9152133a57f1ff77dd1c0))
+
 # [5.1.0](https://github.com/snomiao/keyv-sqlite/compare/v5.0.4...v5.1.0) (2026-02-15)
 
 
