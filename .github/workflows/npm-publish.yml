@@ -20,6 +20,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -33,12 +39,6 @@ jobs:
 
       - name: Build
         run: bun run build
-
-      - name: Setup Node.js for npm publish
-        uses: actions/setup-node@v6
-        with:
-          node-version: latest
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Release
         env:
