@@ -210,7 +210,42 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
       return undefined;
     }
 
-    return rows[0].cacheData as Value;
+    const data = rows[0].cacheData;
+
+    // Check if this is a Keyv-serialized value
+    if (typeof data === "string") {
+      // Keyv special formats like :base64:, :symbol:, etc.
+      if (data.startsWith(":")) {
+        return data as Value;
+      }
+
+      // Try to detect Keyv wrapper format: {value: ..., expires: ...}
+      // Check if it's a JSON object with "value" as a TOP-LEVEL key
+      if (data.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(data);
+          // Check if this is Keyv's wrapper format (has "value" at top level)
+          if (parsed !== null && typeof parsed === "object" && "value" in parsed) {
+            // This is Keyv format, return as string for Keyv to handle
+            return data as Value;
+          }
+          // Not Keyv format, return the parsed object for direct usage
+          return parsed as Value;
+        } catch {
+          // If parsing fails, return as-is
+          return data as Value;
+        }
+      }
+
+      // For other strings, try to parse as JSON
+      try {
+        return JSON.parse(data) as Value;
+      } catch {
+        return data as Value;
+      }
+    }
+
+    return data as Value;
   }
 
   async getMany<Value>(keys: string[]): Promise<Array<StoredData<Value | undefined>>> {
@@ -219,7 +254,41 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
     return keys.map((key) => {
       const row = rows.find((row) => row.cacheKey === key);
 
-      return (row ? row.cacheData : undefined) as StoredData<Value | undefined>;
+      if (!row) {
+        return undefined as StoredData<Value | undefined>;
+      }
+
+      const data = row.cacheData;
+
+      // Check if this is a Keyv-serialized value
+      if (typeof data === "string") {
+        // Keyv special formats
+        if (data.startsWith(":")) {
+          return data as StoredData<Value | undefined>;
+        }
+
+        // Detect Keyv wrapper format
+        if (data.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed !== null && typeof parsed === "object" && "value" in parsed) {
+              return data as StoredData<Value | undefined>;
+            }
+            return parsed as StoredData<Value | undefined>;
+          } catch {
+            return data as StoredData<Value | undefined>;
+          }
+        }
+
+        // Try to parse other strings
+        try {
+          return JSON.parse(data) as StoredData<Value | undefined>;
+        } catch {
+          return data as StoredData<Value | undefined>;
+        }
+      }
+
+      return data as StoredData<Value | undefined>;
     });
   }
 
@@ -265,7 +334,38 @@ CREATE INDEX IF NOT EXISTS idx_expired_caches ON ${tableName}(expiredAt);
 
       for (const entry of entries) {
         offset += 1;
-        yield [entry.cacheKey, entry.cacheData];
+
+        const data = entry.cacheData;
+        let value;
+
+        // Check if this is a Keyv-serialized value
+        if (typeof data === "string") {
+          // Keyv special formats
+          if (data.startsWith(":")) {
+            value = data;
+          } else if (data.startsWith("{")) {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed !== null && typeof parsed === "object" && "value" in parsed) {
+                value = data; // Keyv format
+              } else {
+                value = parsed; // Direct usage
+              }
+            } catch {
+              value = data;
+            }
+          } else {
+            try {
+              value = JSON.parse(data);
+            } catch {
+              value = data;
+            }
+          }
+        } else {
+          value = data;
+        }
+
+        yield [entry.cacheKey, value];
       }
 
       yield* iterate(offset);

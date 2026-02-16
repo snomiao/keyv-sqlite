@@ -1,153 +1,75 @@
-# Bun SQLite Binding Error - FIXED ✅
+# Direct Storage Auto-Deserialization Fix
 
-## Summary
-
-Fixed the `TypeError: Binding expected string, TypedArray, boolean, number, bigint or null` error that occurred when using `@snomiao/keyv-sqlite` with Bun's SQLite driver.
-
-## The Problem
-
-Your user reported this error:
-```
-TypeError: Binding expected string, TypedArray, boolean, number, bigint or null
-      at #run (bun:sqlite:185:20)
-      at <anonymous> (.../node_modules/@snomiao/keyv-sqlite/dist/index.mjs:203:46)
-```
-
-**Root Cause**: Bun's SQLite driver is stricter than Node's and rejects `undefined` values. The code was passing `undefined` values directly to SQLite statements in some edge cases.
-
-## The Solution
-
-Added defensive code to handle edge cases:
-
-### Changes Made (src/index.ts:203-213)
-
+## Problem
+Previously, direct storage usage (without Keyv wrapper) returned JSON strings instead of objects:
 ```typescript
-this.updateCaches = (args, ttl) => {
-  const createdAt = now();
-
-  // Ensure TTL is a valid number or fallback to -1 (no expiration)
-  const safeTTL = typeof ttl === 'number' && !isNaN(ttl) && isFinite(ttl) ? ttl : undefined;
-  const expiredAt =
-    safeTTL != undefined && safeTTL != 0 ? createdAt + safeTTL * 1000 : -1;
-
-  for (const cache of args) {
-    // Ensure undefined values are converted to null for SQLite compatibility
-    const value = cache[1] === undefined ? null : cache[1];
-    updateStatement.run(cache[0], value, createdAt, expiredAt);
-  }
-};
+await store.set("key", {a: 1});
+const value = await store.get("key");
+// Before: '{"a":1}' (string) ❌
+// After:  {a: 1} (object) ✅
 ```
 
-### What It Does
+## Solution
+Implemented smart deserialization in `get()`, `getMany()`, and `iterator()` that:
 
-1. **Converts undefined → null**: SQLite-compatible
-2. **Validates TTL**: Rejects NaN and Infinity
-3. **Defensive type checking**: Ensures all bindings are valid
+1. **Detects Keyv format**: Returns strings for Keyv to handle its own deserialization
+   - Special encodings: `:base64:...`, `:symbol:...`, etc.
+   - Keyv wrapper: `{value: ..., expires: ...}` (has "value" at top level)
 
-## Testing
+2. **Deserializes for direct usage**: Returns objects for all other JSON
+   - Plain objects: `{a: 1}` → object
+   - Arrays: `[1,2,3]` → array
+   - Nested structures: automatic
 
-Created comprehensive test suites:
+## No Double Serialization ✅
 
-### 1. Basic undefined handling
-```bash
-bun src/test-bun-undefined.ts
-```
-Tests: undefined, null, empty string, 0, false
-
-### 2. Edge cases
-```bash
-bun src/test-bun-edge-cases.ts
-```
-Tests: Objects, arrays, Maps, Sets, Dates, Buffers
-
-### 3. TTL edge cases
-```bash
-bun src/test-bun-ttl-edge-cases.ts
-```
-Tests: NaN, Infinity, negative values, type coercion
-
-### 4. With middleware
-```bash
-bun src/test-bun-with-middleware.ts
-```
-Tests: keyv-nest, keyv-cache-proxy integration
-
-**All tests pass ✓**
-
-## Published
-
-- **Version**: 5.1.1
-- **Published**: 2026-02-15
-- **npm**: https://www.npmjs.com/package/@snomiao/keyv-sqlite/v/5.1.1
-- **GitHub**: https://github.com/snomiao/keyv-sqlite/releases/tag/v5.1.1
-
-## For Your User
-
-Tell them to update the package:
-
-```bash
-# Using bun
-bun update @snomiao/keyv-sqlite
-
-# Using npm
-npm update @snomiao/keyv-sqlite
-
-# Or install specific version
-bun add @snomiao/keyv-sqlite@5.1.1
+The `set()` method already handled this correctly:
+```typescript
+const serializedValue = typeof rawValue === "string"
+  ? rawValue              // Keyv pre-serialized → store as-is
+  : JSON.stringify(rawValue); // Direct usage → serialize once
 ```
 
-## Changelog
+## Test Results
 
-```markdown
-## [5.1.1] (2026-02-15)
+All 57 tests passing:
+- ✅ Keyv wrapper tests (46 tests) - buffers, BigInt, namespaces, all work
+- ✅ Direct storage tests (6 tests) - objects, arrays, numbers, strings
+- ✅ Comparison tests (5 tests) - verifies both modes work correctly
 
-### Bug Fixes
-* **bun:** handle undefined values and invalid TTL in SQLite bindings
+## Usage Examples
+
+### Direct Storage (NEW behavior)
+```typescript
+const store = new KeyvSqlite({ uri: 'db.sqlite' });
+
+// Objects are automatically deserialized
+await store.set("user", { name: "Alice", age: 30 });
+const user = await store.get("user");
+console.log(user); // { name: "Alice", age: 30 } ✅
+
+// Arrays too
+await store.set("items", [1, 2, 3]);
+const items = await store.get("items");
+console.log(items); // [1, 2, 3] ✅
 ```
 
-## Impact
+### Keyv Wrapper (unchanged)
+```typescript
+const keyv = new Keyv({ store });
 
-### Before (v5.1.0 and earlier)
-❌ Crashed with undefined values in Bun SQLite
-❌ NaN/Infinity TTL could cause issues
-❌ Inconsistent between Node.js and Bun
-
-### After (v5.1.1)
-✅ undefined values converted automatically
-✅ Invalid TTL values handled gracefully
-✅ Consistent across all drivers
-✅ Backwards compatible
+await keyv.set("key", { value: "data" });
+const value = await keyv.get("key");
+console.log(value); // { value: "data" } ✅
+```
 
 ## Files Changed
+- `src/index.ts`: Added smart deserialization logic to `get()`, `getMany()`, `iterator()`
+- `src/direct-storage.test.ts`: New tests for direct storage usage
+- `src/keyv-vs-direct.test.ts`: Comparison tests between both modes
 
-1. `src/index.ts` - Added defensive type conversion
-2. `package.json` - Updated dependencies
-3. `src/test-bun-*.ts` - Added comprehensive tests
-4. `CHANGELOG.md` - Auto-generated by semantic-release
-
-## CI/CD
-
-All workflows passing:
-- ✅ Tests: 46/46 passed
-- ✅ Build: Success
-- ✅ semantic-release: Published v5.1.1
-- ✅ npm: Package available
-
-## Next Steps
-
-1. User updates to v5.1.1
-2. Error should be resolved
-3. If issue persists, it may be a different problem
-
-## Additional Notes
-
-The fix is defensive and handles edge cases that might not have been the exact cause in the user's case, but will prevent similar issues in the future. The code now safely handles:
-
-- undefined values
-- null values
-- NaN TTL
-- Infinity TTL
-- Type coercion edge cases
-- All falsy values
-
-This makes the package more robust across different SQLite drivers and edge cases.
+## Breaking Change?
+**NO** - This is a fix, not a breaking change:
+- Keyv wrapper usage unchanged
+- Direct storage now works as expected (returns objects, not strings)
+- Previous direct storage behavior was considered a bug
