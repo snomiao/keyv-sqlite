@@ -1,3 +1,10 @@
+## [5.1.3](https://github.com/snomiao/keyv-sqlite/compare/v5.1.2...v5.1.3) (2026-02-17)
+
+
+### Bug Fixes
+
+* update import statements to use double quotes in README ([b303109](https://github.com/snomiao/keyv-sqlite/commit/b30310988bdd19d0afb62205750563c43157861e))
+
 ## [5.1.2](https://github.com/snomiao/keyv-sqlite/compare/v5.1.1...v5.1.2) (2026-02-15)
 
 
