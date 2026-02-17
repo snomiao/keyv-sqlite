@@ -15,15 +15,15 @@ npm i @snomiao/keyv-sqlite
 ### Basic Usage
 
 ```typescript
-import KeyvSqlite from '@snomiao/keyv-sqlite';  // or: import { KeyvSqlite } from '...'
+import KeyvSqlite from "@snomiao/keyv-sqlite"; // or: import { KeyvSqlite } from '...'
 import Keyv from "keyv";
 
 // Simple file path (recommended), note: WAL mode is enabled by default
-const store = new KeyvSqlite('./cache.db');
+const store = new KeyvSqlite("./cache.db");
 const keyv = new Keyv({ store });
 
 // In-memory cache
-const store = new KeyvSqlite(':memory:');
+const store = new KeyvSqlite(":memory:");
 const keyv = new Keyv({ store });
 
 // Default (in-memory)
@@ -34,24 +34,24 @@ const keyv = new Keyv({ store });
 ### Helper Function
 
 ```typescript
-import { createKeyv } from '@snomiao/keyv-sqlite';
+import { createKeyv } from "@snomiao/keyv-sqlite";
 
 // Simple file path
-const keyv = createKeyv('./cache.db');
+const keyv = createKeyv("./cache.db");
 
 // With options
-const keyv = createKeyv({ uri: 'cache.sqlite' });
+const keyv = createKeyv({ uri: "cache.sqlite" });
 ```
 
 ### With Options
 
 ```typescript
 const store = new KeyvSqlite({
-  uri: './cache.db',
-  table: 'my_cache',        // Custom table name
-  wal: true,                // WAL mode (default: true)
-  busyTimeout: 10000,       // Busy timeout in ms
-  iterationLimit: 100       // Iterator batch size
+  uri: "./cache.db",
+  table: "my_cache", // Custom table name
+  wal: true, // WAL mode (default: true)
+  busyTimeout: 10000, // Busy timeout in ms
+  iterationLimit: 100, // Iterator batch size
 });
 ```
 
@@ -94,31 +94,31 @@ All methods are async to match the Keyv interface:
 ```typescript
 // Use node:sqlite explicitly
 const store = new KeyvSqlite({
-  uri: 'cache.sqlite',
-  driver: 'node:sqlite'
+  uri: "cache.sqlite",
+  driver: "node:sqlite",
 });
 
 // Use bun:sqlite explicitly
 const store = new KeyvSqlite({
-  uri: 'cache.sqlite',
-  driver: 'bun:sqlite'
+  uri: "cache.sqlite",
+  driver: "bun:sqlite",
 });
 
 // Use better-sqlite3 explicitly
 const store = new KeyvSqlite({
-  uri: 'cache.sqlite',
-  driver: 'better-sqlite3'
+  uri: "cache.sqlite",
+  driver: "better-sqlite3",
 });
 ```
 
 ### Custom Driver Module
 
 ```typescript
-import Database from 'better-sqlite3';
+import Database from "better-sqlite3";
 
 const store = new KeyvSqlite({
-  uri: 'cache.sqlite',
-  driver: Database  // Pass the driver constructor directly
+  uri: "cache.sqlite",
+  driver: Database, // Pass the driver constructor directly
 });
 ```
 
@@ -127,10 +127,12 @@ const store = new KeyvSqlite({
 The library auto-detects and uses the best available driver for your runtime:
 
 ### Native Drivers (First-class support)
+
 - **node:sqlite** - Built into Node.js 22.5.0+ (requires `--experimental-sqlite` flag)
 - **bun:sqlite** - Built into Bun runtime
 
 ### NPM Packages
+
 - **better-sqlite3** - Requires installation: `npm install better-sqlite3`
 
 Native drivers are pre-loaded at module initialization using top-level await, making the constructor fully synchronous.
@@ -145,12 +147,12 @@ Native drivers are pre-loaded at module initialization using top-level await, ma
 
 ```typescript
 type KeyvSqliteOptions = {
-  uri?: string;              // Database file path (default: ":memory:")
-  driver?: DriverType | DriverModule;  // Driver selection (default: "auto")
-  table?: string;            // Table name (default: "caches")
-  wal?: boolean;             // Enable WAL mode (default: true)
-  busyTimeout?: number;      // Busy timeout in ms (default: 5000)
-  iterationLimit?: number;   // Iterator batch size (default: 10)
+  uri?: string; // Database file path (default: ":memory:")
+  driver?: DriverType | DriverModule; // Driver selection (default: "auto")
+  table?: string; // Table name (default: "caches")
+  wal?: boolean; // Enable WAL mode (default: true)
+  busyTimeout?: number; // Busy timeout in ms (default: 5000)
+  iterationLimit?: number; // Iterator batch size (default: 10)
 };
 ```
 
@@ -158,40 +160,39 @@ type KeyvSqliteOptions = {
 
 This fork (`@snomiao/keyv-sqlite`) differs from the original `@resolid/keyv-sqlite` in the following ways:
 
-| Feature | Original (@resolid) | This Fork (@snomiao) |
-|---------|---------------------|----------------------|
-| **SQLite drivers** | ✅ better-sqlite3 only | ✅ Multi-driver (node:sqlite, bun:sqlite, better-sqlite3) |
-| **Auto-detection** | ❌ No | ✅ Yes (picks best driver for runtime) |
-| **Native drivers** | ❌ No | ✅ node:sqlite (Node 22.5+), bun:sqlite |
-| **Cross-runtime** | ⚠️ Node.js only | ✅ Node.js, Bun, Deno |
-| **WAL mode** | ⚠️ Opt-in (off by default) | ✅ Enabled by default |
-| **Driver abstraction** | ❌ No | ✅ Yes (sqliteAdapter.ts with top-level await) |
-| **String parameter** | ❌ No | ✅ Yes (`new KeyvSqlite('./db')`) |
-| **Benchmark workflow** | ❌ No | ✅ Comprehensive multi-driver benchmarks |
-| **Build tool** | tsup | tsdown |
-| **Linter** | biome | oxlint + oxfmt |
+| Feature                | Original (@resolid)        | This Fork (@snomiao)                                      |
+| ---------------------- | -------------------------- | --------------------------------------------------------- |
+| **SQLite drivers**     | ✅ better-sqlite3 only     | ✅ Multi-driver (node:sqlite, bun:sqlite, better-sqlite3) |
+| **Native drivers**     | ❌ No                      | ✅ node:sqlite (Node 22.5+), bun:sqlite                   |
+| **Cross-runtime**      | ⚠️ Node.js only            | ✅ Node.js, Bun, Deno                                     |
+| **WAL mode**           | ⚠️ Opt-in (off by default) | ✅ Enabled by default                                     |
+| **String parameter**   | ❌ No                      | ✅ Yes (`new KeyvSqlite('./db')`)                         |
+| **Benchmark workflow** | ❌ No                      | ✅ Comprehensive multi-driver benchmarks                  |
 
 ### Key Innovation
 
 The main difference is **multi-driver support with automatic runtime detection**:
 
 **Upstream approach:**
+
 ```typescript
-import Database from "better-sqlite3";  // ← Hardcoded, must have better-sqlite3
+import Database from "better-sqlite3"; // ← Hardcoded, must have better-sqlite3
 ```
 
 **This fork approach:**
+
 ```typescript
 // Pre-loads native drivers at module initialization (top-level await)
-let nodeSqliteDriver = await import("node:sqlite");      // ← Zero dependencies!
-let bunSqliteDriver = await import("bun:sqlite");        // ← Zero dependencies!
-let betterSqlite3 = await import("better-sqlite3");      // ← Fallback
+let nodeSqliteDriver = await import("node:sqlite"); // ← Zero dependencies!
+let bunSqliteDriver = await import("bun:sqlite"); // ← Zero dependencies!
+let betterSqlite3 = await import("better-sqlite3"); // ← Fallback
 
 // Auto-selects best available driver
 // OR accepts custom driver: new KeyvSqlite({ driver: MyCustomDriver })
 ```
 
 This allows the fork to:
+
 1. **Prefer native drivers** (zero dependencies, no compilation)
 2. **Fall back gracefully** to better-sqlite3 if needed
 3. **Accept custom drivers** for maximum flexibility
@@ -209,6 +210,7 @@ If migrating from `@resolid/keyv-sqlite`:
 The API is backwards compatible. Simply change the package name - your existing code will continue to work!
 
 **Optional improvements:**
+
 - Option name change: `enableWALMode` → `wal` (both work)
 - Can now use string parameter: `new KeyvSqlite('./db')`
 - Will auto-detect best driver (or specify with `driver` option)
